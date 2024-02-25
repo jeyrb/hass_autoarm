@@ -1,0 +1,1 @@
+Automatically set alarm panel state

@@ -1,0 +1,13 @@
+{
+    "domain":"autoarm",
+    "name":"Auto Arm",
+    "version":"0.1",
+    "integration_type":"virtual",
+    "requirements":[
+    ],
+    "config_flow": false,
+    "documentation": "https://github.com/jeyrb/hass_autoarm",
+    "issue_tracker": "https://github.com/jeyrb/hass_autoarm/issues",
+    "codeowners":["@jeyrb"]
+    
+    }
