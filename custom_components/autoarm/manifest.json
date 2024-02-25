@@ -2,7 +2,8 @@
     "domain":"autoarm",
     "name":"Auto Arm",
     "version":"0.1",
-    "integration_type":"virtual",
+    "integration_type":"helper",
+    "dependencies":[],
     "requirements":[
     ],
     "config_flow": false,

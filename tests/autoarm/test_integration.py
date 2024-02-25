@@ -1,3 +1,4 @@
+from datetime import timedelta
 from homeassistant.const import CONF_ICON
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
@@ -7,6 +8,7 @@ from custom_components.autoarm.const import (
     CONF_ACTION,
     CONF_ACTIONS,
     CONF_ALARM_PANEL,
+    CONF_ARM_AWAY_DELAY,
     CONF_AUTO_ARM,
     CONF_BUTTON_ENTITY_AWAY,
     CONF_BUTTON_ENTITY_DISARM,
@@ -17,31 +19,35 @@ from custom_components.autoarm.const import (
     CONF_SLEEP_START,
     CONF_SUNRISE_CUTOFF,
     CONF_TITLE,
+    DOMAIN
 )
 
 CONFIG = {
-    CONF_ALARM_PANEL: "alarm_panel.testing",
-    CONF_AUTO_ARM: True,
-    CONF_SLEEP_START: "09:00:00",
-    CONF_SLEEP_END: "22:00:00",
-    CONF_SUNRISE_CUTOFF: "06:30:00",
-    CONF_BUTTON_ENTITY_RESET: "binary_sensor.button_left",
-    CONF_BUTTON_ENTITY_AWAY: "binary_sensor.button_right",
-    CONF_BUTTON_ENTITY_DISARM: "binary_sensor.button_middle",
-    CONF_OCCUPANTS: ["person.house_owner", "person.tenant"],
-    CONF_NOTIFY: {
-        "common": {
-            "service": "notify.supernotifier",
-            "data": {"actions": {"action_groups": "alarm_panel", "action_category": "alarm_panel"}},
+    DOMAIN: {
+        CONF_ALARM_PANEL: "alarm_panel.testing",
+        CONF_AUTO_ARM: True,
+        CONF_ARM_AWAY_DELAY: timedelta(minutes=2),
+        CONF_SLEEP_START: "09:00:00",
+        CONF_SLEEP_END: "22:00:00",
+        CONF_SUNRISE_CUTOFF: "06:30:00",
+        CONF_BUTTON_ENTITY_RESET: "binary_sensor.button_left",
+        CONF_BUTTON_ENTITY_AWAY: "binary_sensor.button_right",
+        CONF_BUTTON_ENTITY_DISARM: "binary_sensor.button_middle",
+        CONF_OCCUPANTS: ["person.house_owner", "person.tenant"],
+        CONF_NOTIFY: {
+            "common": {
+                "service": "notify.supernotifier",
+                "data": {"actions": {"action_groups": "alarm_panel", "action_category": "alarm_panel"}},
+            },
+            "quiet": {"data": {"priority": "low"}},
+            "normal": {"data": {"priority": "medium"}},
         },
-        "quiet": {"data": {"priority": "low"}},
-        "normal": {"data": {"priority": "medium"}},
-    },
-    CONF_ACTIONS: [
-        {CONF_ACTION: "ALARM_PANEL_DISARM", CONF_TITLE: "Disarm Alarm Panel", CONF_ICON: "sfsymbols:bell.slash"},
-        {CONF_ACTION: "ALARM_PANEL_RESET", CONF_TITLE: "Reset Alarm Panel", CONF_ICON: "sfsymbols:bell"},
-        {CONF_ACTION: "ALARM_PANEL_AWAY", CONF_TITLE: "Arm Alarm Panel for Going Awa", CONF_ICON: "sfsymbols:airplane"},
-    ],
+        CONF_ACTIONS: [
+            {CONF_ACTION: "ALARM_PANEL_DISARM", CONF_TITLE: "Disarm Alarm Panel", CONF_ICON: "sfsymbols:bell.slash"},
+            {CONF_ACTION: "ALARM_PANEL_RESET", CONF_TITLE: "Reset Alarm Panel", CONF_ICON: "sfsymbols:bell"},
+            {CONF_ACTION: "ALARM_PANEL_AWAY", CONF_TITLE: "Arm Alarm Panel for Going Awa", CONF_ICON: "sfsymbols:airplane"},
+        ]
+    }
 }
 
 

@@ -45,7 +45,7 @@ def load_time(v):
         return datetime.datetime.strptime(v, "%H:%M:%S").time()
 
 
-total_secs = lambda t: (t.hour * 3600) + (t.minute * 60) + t.second
+total_secs = lambda t: (t.hour * 3600) + (t.minute * 60) + t.second 
 
 OVERRIDE_STATES = ("armed_away", "armed_vacation")
 ZOMBIE_STATES = ("unknown", "unavailable")
@@ -57,6 +57,7 @@ async def async_setup(
     config: ConfigType,
 ) -> None:
 
+    config = config.get(DOMAIN, {})
     hass.states.async_set(
         "%s.configured" % DOMAIN,
         True,
@@ -80,13 +81,13 @@ async def async_setup(
         hass,
         alarm_panel=config[CONF_ALARM_PANEL],
         auto_disarm=config[CONF_AUTO_ARM],
-        sleep_start=config[CONF_SLEEP_START],
-        sleep_end=config[CONF_SLEEP_END],
-        sunrise_cutoff=config[CONF_SUNRISE_CUTOFF],
+        sleep_start=config.get(CONF_SLEEP_START),
+        sleep_end=config.get(CONF_SLEEP_END),
+        sunrise_cutoff=config.get(CONF_SUNRISE_CUTOFF),
         arm_away_delay=config[CONF_ARM_AWAY_DELAY],
-        reset_button=config[CONF_BUTTON_ENTITY_RESET],
-        away_button=config[CONF_BUTTON_ENTITY_AWAY],
-        disarm_button=config[CONF_BUTTON_ENTITY_DISARM],
+        reset_button=config.get(CONF_BUTTON_ENTITY_RESET),
+        away_button=config.get(CONF_BUTTON_ENTITY_AWAY),
+        disarm_button=config.get(CONF_BUTTON_ENTITY_DISARM),
         occupants=config[CONF_OCCUPANTS],
         actions=config[CONF_ACTIONS],
         notify=config[CONF_NOTIFY],
@@ -121,7 +122,7 @@ class AlarmArmer:
         self.sleep_start = load_time(sleep_start)
         self.sleep_end = load_time(sleep_end)
         self.sunrise_cutoff = sunrise_cutoff
-        self.arm_away_delay = arm_away_delay.total_seconds() if arm_away_delay else 0
+        self.arm_away_delay = arm_away_delay if arm_away_delay else 0
         self.reset_button = reset_button
         self.away_button = away_button
         self.disarm_button = disarm_button

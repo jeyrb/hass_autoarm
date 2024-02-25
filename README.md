@@ -14,7 +14,7 @@ Configure in the Home Assistant config
 
 ```yaml
     alarm_panel: alarm_panel.testing
-    auto_arm: True,
+    auto_arm: True
     sleep_start: 09:00:00
     sleep_end: 22:00:00
     sunrise_cutoff: 06:30:00
