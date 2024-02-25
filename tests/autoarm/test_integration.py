@@ -1,4 +1,4 @@
-from datetime import timedelta
+
 from homeassistant.const import CONF_ICON
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
@@ -19,14 +19,14 @@ from custom_components.autoarm.const import (
     CONF_SLEEP_START,
     CONF_SUNRISE_CUTOFF,
     CONF_TITLE,
-    DOMAIN
+    DOMAIN,
 )
 
 CONFIG = {
-    DOMAIN:{
+    DOMAIN: {
         CONF_ALARM_PANEL: "alarm_panel.testing",
         CONF_AUTO_ARM: True,
-        CONF_ARM_AWAY_DELAY: timedelta(minutes=2),
+        CONF_ARM_AWAY_DELAY: 180,
         CONF_SLEEP_START: "09:00:00",
         CONF_SLEEP_END: "22:00:00",
         CONF_SUNRISE_CUTOFF: "06:30:00",
@@ -46,7 +46,7 @@ CONFIG = {
             {CONF_ACTION: "ALARM_PANEL_DISARM", CONF_TITLE: "Disarm Alarm Panel", CONF_ICON: "sfsymbols:bell.slash"},
             {CONF_ACTION: "ALARM_PANEL_RESET", CONF_TITLE: "Reset Alarm Panel", CONF_ICON: "sfsymbols:bell"},
             {CONF_ACTION: "ALARM_PANEL_AWAY", CONF_TITLE: "Arm Alarm Panel for Going Awa", CONF_ICON: "sfsymbols:airplane"},
-        ]
+        ],
     }
 }
 

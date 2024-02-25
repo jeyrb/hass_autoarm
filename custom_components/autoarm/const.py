@@ -1,6 +1,5 @@
 """ The Auto Arm integration """
 
-from datetime import timedelta
 import logging
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
