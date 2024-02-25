@@ -119,7 +119,7 @@ class AlarmArmer:
         self.sleep_start = load_time(sleep_start)
         self.sleep_end = load_time(sleep_end)
         self.sunrise_cutoff = sunrise_cutoff
-        self.arm_away_delay = arm_away_delay if arm_away_delay else 0
+        self.arm_away_delay = arm_away_delay
         self.reset_button = reset_button
         self.away_button = away_button
         self.disarm_button = disarm_button

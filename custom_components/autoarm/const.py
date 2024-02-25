@@ -62,7 +62,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_SLEEP_START): cv.time,
                 vol.Optional(CONF_SLEEP_END): cv.time,
                 vol.Optional(CONF_SUNRISE_CUTOFF): cv.time,
-                vol.Optional(CONF_ARM_AWAY_DELAY, default=180): cv.time_period,
+                vol.Optional(CONF_ARM_AWAY_DELAY, default=180): cv.positive_int,
                 vol.Optional(CONF_BUTTON_ENTITY_RESET): cv.entity_id,
                 vol.Optional(CONF_BUTTON_ENTITY_AWAY): cv.entity_id,
                 vol.Optional(CONF_BUTTON_ENTITY_DISARM): cv.entity_id,
