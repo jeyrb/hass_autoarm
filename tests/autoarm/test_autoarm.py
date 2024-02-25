@@ -43,6 +43,11 @@ async def test_reset_armed_state_sets_home(hass: HomeAssistant, autoarm: AlarmAr
     hass.states.async_set(TEST_PANEL, "disarmed")
     assert await autoarm.reset_armed_state() == "armed_home"
 
+async def test_reset_armed_state_overrides_unknown(hass: HomeAssistant, autoarm: AlarmArmer):
+    hass.states.async_set("sun.sun", "above_horizon")
+    hass.states.async_set("person.tester_bob", "home")
+    hass.states.async_set(TEST_PANEL, "whatever")
+    assert await autoarm.reset_armed_state(force_arm=False) == "disarmed"
 
 async def test_unforced_reset_leaves_disarmed(hass: HomeAssistant, autoarm: AlarmArmer):
     hass.states.async_set("sun.sun", "above_horizon")
