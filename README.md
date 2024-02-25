@@ -10,6 +10,9 @@ control buttons, and mobile push actionable notifications.
 Register this GitHub repo as a custom repo 
 in your [HACS]( https://hacs.xyz) configuration. 
 
+Notifications will work with any HomeAssistant notification implementation
+but works best with [Supernotifier](https://jeyrb.github.io/hass_supernotify/) for multi-channel notifications with mobile actions.
+
 ## Diurnal settings
 
 Arming can happen strictly by sunset and sunrise. 
