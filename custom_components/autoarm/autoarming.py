@@ -242,7 +242,7 @@ class AlarmArmer:
                 new,
             )
             return
-        _LOGGER.debug("AUTOARM Panel Change: %s,%s: %s-->%s", entity_id, event.event_type, old, new)
+        _LOGGER.info("AUTOARM Panel Change: %s,%s: %s-->%s", entity_id, event.event_type, old, new)
 
         if new in ZOMBIE_STATES:
             _LOGGER.debug("AUTOARM Dezombifying %s ...", new)
@@ -326,7 +326,7 @@ class AlarmArmer:
             existing_state = self.armed_state()
             if arming_state != existing_state:
                 self.hass.states.async_set(self.alarm_panel, arming_state)
-                _LOGGER.debug("AUTOARM Setting %s from %s to %s" % (self.alarm_panel, existing_state, arming_state))
+                _LOGGER.info("AUTOARM Setting %s from %s to %s" % (self.alarm_panel, existing_state, arming_state))
                 return arming_state
             else:
                 _LOGGER.debug("Skipping arm, as %s already %s" % (self.alarm_panel, arming_state))
