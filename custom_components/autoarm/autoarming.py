@@ -31,7 +31,7 @@ from .const import (
     CONF_SLEEP_START,
     CONF_SUNRISE_CUTOFF,
     DOMAIN,
-    CONFIG_SCHEMA
+    CONFIG_SCHEMA,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def load_time(v):
         return datetime.datetime.strptime(v, "%H:%M:%S").time()
 
 
-total_secs = lambda t: (t.hour * 3600) + (t.minute * 60) + t.second 
+total_secs = lambda t: (t.hour * 3600) + (t.minute * 60) + t.second
 
 OVERRIDE_STATES = ("armed_away", "armed_vacation")
 ZOMBIE_STATES = ("unknown", "unavailable")
@@ -55,7 +55,7 @@ NS_MOBILE_ACTIONS = "mobile_actions"
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     _ = CONFIG_SCHEMA
-    config=config.get(DOMAIN,{})
+    config = config.get(DOMAIN, {})
     hass.states.async_set(
         "%s.configured" % DOMAIN,
         True,
@@ -94,6 +94,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, armer.async_shutdown)
 
     return True
+
 
 class AlarmArmer:
 
@@ -350,11 +351,11 @@ class AlarmArmer:
 
             title = title or "Alarm Auto Arming"
             if merged_profile:
-                await self.hass.services.async_call("notify", notify_service, 
-                                                    message=message,
-                                                    title=title,
-                                                    service_data=merged_profile.get("data", {}))
-        
+                data = merged_profile.get("data", {})
+                await self.hass.services.async_call(
+                    "notify", notify_service, service_data={"message": message, "title": title, "data": data}
+                )
+
         except Exception as e:
             _LOGGER.error("AUTOARM %s failed %s" % (notify_service, e))
 
