@@ -248,7 +248,7 @@ class AlarmArmer:
             await self.reset_armed_state()
         else:
             message = "Home Assistant alert level now set from %s to %s" % (old, new)
-            self.notify_flex(message, title="Alarm now %s" % new, profile="quiet")
+            await self.notify_flex(message, title="Alarm now %s" % new, profile="quiet")
 
     def _extract_event(self, event):
         entity_id = old = new = None
@@ -333,7 +333,7 @@ class AlarmArmer:
         finally:
             self.arming_in_progress.clear()
 
-    def notify_flex(self, message, profile="normal", title=None):
+    async def notify_flex(self, message, profile="normal", title=None):
         notify_service = None
         try:
             # separately merge base dict and data sub-dict as cheap and nasty semi-deep-merge
@@ -346,16 +346,15 @@ class AlarmArmer:
             merged_profile_data = dict(base_profile_data)
             merged_profile_data.update(selected_profile_data)
             merged_profile["data"] = merged_profile_data
-            notify_service = merged_profile["service"].replace(".", "/")
+            notify_service = merged_profile["service"].replace("notify.", "")
 
             title = title or "Alarm Auto Arming"
             if merged_profile:
-                self.call_service(
-                    notify_service,
-                    message=message,
-                    title=title,
-                    data=merged_profile.get("data", {}),
-                )
+                await self.hass.services.async_call("notify", notify_service, 
+                                                    message=message,
+                                                    title=title,
+                                                    service_data=merged_profile.get("data", {}))
+        
         except Exception as e:
             _LOGGER.error("AUTOARM %s failed %s" % (notify_service, e))
 
@@ -412,7 +411,7 @@ class AlarmArmer:
                     dt_util.utc_from_timestamp(time.time() + self.arm_away_delay),
                 )
             )
-            self.notify_flex(
+            await self.notify_flex(
                 "Alarm will be armed for away in %s seconds" % self.arm_away_delay,
                 title="Arm for away process starting",
             )
