@@ -2,7 +2,8 @@
     "domain":"autoarm",
     "name":"Auto Arm",
     "version":"0.1",
-    "integration_type":"helper",
+    "integration_type":"hub",
+    "iot_class":"calculated",
     "dependencies":[],
     "requirements":[
     ],
