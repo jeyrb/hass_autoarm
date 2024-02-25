@@ -212,7 +212,7 @@ class AlarmArmer:
 
     def safe_state(self, state):
         try:
-            return state.state
+            return state.state if state is not None else None
         except Exception as e:
             _LOGGER.debug("AUTOARM Failed to load state %s: %s", state, e)
             return None
