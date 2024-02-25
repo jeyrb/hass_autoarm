@@ -2,7 +2,7 @@
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.autoarm.autoarm import AlarmArmer
+from custom_components.autoarm.autoarming import AlarmArmer
 
 TEST_PANEL = "alarm_control_panel.test_panel"
 

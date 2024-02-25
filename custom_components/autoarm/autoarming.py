@@ -31,6 +31,7 @@ from .const import (
     CONF_SLEEP_START,
     CONF_SUNRISE_CUTOFF,
     DOMAIN,
+    CONFIG_SCHEMA
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,12 +53,9 @@ ZOMBIE_STATES = ("unknown", "unavailable")
 NS_MOBILE_ACTIONS = "mobile_actions"
 
 
-async def async_setup(
-    hass: HomeAssistant,
-    config: ConfigType,
-) -> None:
-
-    config = config.get(DOMAIN, {})
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    _ = CONFIG_SCHEMA
+    config=config.get(DOMAIN,{})
     hass.states.async_set(
         "%s.configured" % DOMAIN,
         True,
@@ -96,7 +94,6 @@ async def async_setup(
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, armer.async_shutdown)
 
     return True
-
 
 class AlarmArmer:
 

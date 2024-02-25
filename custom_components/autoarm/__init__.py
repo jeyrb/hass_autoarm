@@ -1,7 +1,5 @@
-from .autoarm import async_setup
+from .autoarming import async_setup
 from .const import (
     CONFIG_SCHEMA,
-    DOMAIN,
-    PLATFORMS
+    DOMAIN
 )
-

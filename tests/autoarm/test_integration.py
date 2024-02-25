@@ -23,7 +23,7 @@ from custom_components.autoarm.const import (
 )
 
 CONFIG = {
-    DOMAIN: {
+    DOMAIN:{
         CONF_ALARM_PANEL: "alarm_panel.testing",
         CONF_AUTO_ARM: True,
         CONF_ARM_AWAY_DELAY: timedelta(minutes=2),

@@ -8,8 +8,6 @@ from homeassistant.const import CONF_ICON, CONF_SERVICE
 
 DOMAIN = "autoarm"
 
-PLATFORMS = ["autoarm"]
-
 CONF_ACTIONS = "actions"
 CONF_ACTION = "action"
 CONF_ACTION_TEMPLATE = "action_template"
@@ -65,7 +63,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_SLEEP_START): cv.time,
                 vol.Optional(CONF_SLEEP_END): cv.time,
                 vol.Optional(CONF_SUNRISE_CUTOFF): cv.time,
-                vol.Optional(CONF_ARM_AWAY_DELAY, default=timedelta(minutes=3)): cv.time_period,
+                vol.Optional(CONF_ARM_AWAY_DELAY, default=180): cv.time_period,
                 vol.Optional(CONF_BUTTON_ENTITY_RESET): cv.entity_id,
                 vol.Optional(CONF_BUTTON_ENTITY_AWAY): cv.entity_id,
                 vol.Optional(CONF_BUTTON_ENTITY_DISARM): cv.entity_id,
@@ -74,5 +72,6 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_NOTIFY, default={}): NOTIFY_SCHEMA,
             }
         )
-    }
+    },
+    extra=vol.ALLOW_EXTRA,
 )

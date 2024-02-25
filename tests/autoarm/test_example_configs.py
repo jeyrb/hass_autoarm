@@ -10,6 +10,7 @@ from homeassistant.setup import async_setup_component
 from custom_components.autoarm.const import DOMAIN
 
 
+
 EXAMPLES_ROOT = "examples"
 
 examples = os.listdir(EXAMPLES_ROOT)
