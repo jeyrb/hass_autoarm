@@ -151,19 +151,20 @@ class AlarmArmer:
 
     async def initialize(self):
         _LOGGER.debug("AUTOARM Initializing ...")
-        _LOGGER.info("AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s, state=%s", 
+        _LOGGER.info("AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s, occupied=%s, state=%s", 
                      self.auto_disarm, self.arm_away_delay, 
                      self.is_awake(),
+                     self.is_occupied(),
                      self.armed_state())
 
         self.initialize_alarm_panel()
-        self.initialize_diurnal()
+        self.initialize_diurnal() 
         self.initialize_occupancy()
         self.initialize_bedtime()
         self.initialize_buttons()
         self.reset_armed_state(force_arm=False)
         self.initialize_integration()
-        _LOGGER.debug("AUTOARM Initialized")
+        _LOGGER.info("AUTOARM Initialized, state: %s", self.armed_state())
 
     def initialize_integration(self) -> None:
         self.unsubscribes.append(self.hass.bus.async_listen("mobile_app_notification_action", self.on_mobile_action))
