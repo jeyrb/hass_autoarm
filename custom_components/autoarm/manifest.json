@@ -1,10 +1,17 @@
 {
     "domain":"autoarm",
     "name":"Auto Arm",
-    "version":"0.1",
+    "version":"0.2",
     "integration_type":"hub",
     "iot_class":"calculated",
-    "dependencies":[],
+    "dependencies":[
+        "sun",
+        "alarm_control_panel"
+    ],
+    "after_dependencies":[
+        "supernotifier",
+        "mobile_app"
+    ],
     "requirements":[
     ],
     "config_flow": false,

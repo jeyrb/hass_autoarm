@@ -16,6 +16,7 @@ from homeassistant.helpers.event import (
     async_track_utc_time_change,
 )
 from homeassistant.helpers.typing import ConfigType, EventType
+from homeassistant.components.sun import STATE_BELOW_HORIZON
 
 from .const import (
     CONF_ACTIONS,
@@ -32,6 +33,17 @@ from .const import (
     CONF_SUNRISE_CUTOFF,
     DOMAIN,
     CONFIG_SCHEMA,
+    STATE_HOME,
+    STATE_ALARM_DISARMED,
+    STATE_ALARM_ARMED_AWAY,
+    STATE_ALARM_ARMED_HOME,
+    STATE_ALARM_ARMED_NIGHT,
+    STATE_ALARM_ARMED_VACATION,
+    STATE_ALARM_ARMED_CUSTOM_BYPASS,
+    STATE_ALARM_PENDING,
+    STATE_ALARM_ARMING,
+    STATE_ALARM_DISARMING,
+    STATE_ALARM_TRIGGERED,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,7 +60,8 @@ def load_time(v):
 
 total_secs = lambda t: (t.hour * 3600) + (t.minute * 60) + t.second
 
-OVERRIDE_STATES = ("armed_away", "armed_vacation")
+OVERRIDE_STATES = (STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_VACATION, STATE_ALARM_ARMED_CUSTOM_BYPASS)
+EPHEMERAL_STATES = (STATE_ALARM_PENDING, STATE_ALARM_ARMING, STATE_ALARM_DISARMING, STATE_ALARM_TRIGGERED)
 ZOMBIE_STATES = ("unknown", "unavailable")
 NS_MOBILE_ACTIONS = "mobile_actions"
 
@@ -128,13 +141,16 @@ class AlarmArmer:
         self.actions = actions or []
         self.notify_profiles = notify or {}
         self.unsubscribes = []
+        self.last_request = None
+        self.arming_in_progress = asyncio.Event()
 
     async def initialize(self):
         _LOGGER.debug("AUTOARM Initializing ...")
-        _LOGGER.info("AUTOARM auto_disarm=%s, arm_delay=%s", self.auto_disarm, self.arm_away_delay)
-        self.last_request = None
-
-        self.arming_in_progress = asyncio.Event()
+        _LOGGER.info("AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s", 
+                     self.auto_disarm, 
+                     self.arm_away_delay,
+                     self.is_awake())
+        
         self.initialize_alarm_panel()
         self.initialize_diurnal()
         self.initialize_occupancy()
@@ -174,7 +190,7 @@ class AlarmArmer:
 
     def initialize_occupancy(self):
         """Configure occupants, and listen for changes in their state"""
-        _LOGGER.debug("AUTOARM Occupancy determined by %s" % ",".join(self.occupants))
+        _LOGGER.info("AUTOARM Occupancy determined by %s" % ",".join(self.occupants))
         self.unsubscribes.append(async_track_state_change_event(self.hass, self.occupants, self.on_occupancy_change))
         _LOGGER.debug(
             "AUTOARM Occupied: %s, Unoccupied: %s, Night: %s" % (self.is_occupied(), self.is_unoccupied(), self.is_night())
@@ -219,13 +235,13 @@ class AlarmArmer:
             return None
 
     def is_occupied(self):
-        return any(self.safe_state(self.hass.states.get(p)) == "home" for p in self.occupants)
+        return any(self.safe_state(self.hass.states.get(p)) == STATE_HOME for p in self.occupants)
 
     def is_unoccupied(self):
-        return all(self.safe_state(self.hass.states.get(p)) != "home" for p in self.occupants)
+        return all(self.safe_state(self.hass.states.get(p)) != STATE_HOME for p in self.occupants)
 
     def is_night(self):
-        return self.safe_state(self.hass.states.get("sun.sun")) == "below_horizon"
+        return self.safe_state(self.hass.states.get("sun.sun")) == STATE_BELOW_HORIZON
 
     def armed_state(self):
         return self.safe_state(self.hass.states.get(self.alarm_panel))
@@ -269,8 +285,8 @@ class AlarmArmer:
         existing_state = self.armed_state()
         _LOGGER.debug("AUTOARM Occupancy Change: %s, %s, %s, %s" % (entity_id, old, new, event))
         if self.is_unoccupied() and existing_state not in OVERRIDE_STATES:
-            await self.arm("armed_away")
-        elif self.is_occupied() and existing_state == "armed_away":
+            await self.arm(STATE_ALARM_ARMED_AWAY)
+        elif self.is_occupied() and existing_state == STATE_ALARM_ARMED_AWAY:
             await self.reset_armed_state()
 
     def is_awake(self):
@@ -283,27 +299,27 @@ class AlarmArmer:
 
     async def reset_armed_state(self, force_arm=True, hint_arming=None):
         existing_state = self.armed_state()
-        if existing_state != "disarmed" or force_arm:
+        if existing_state != STATE_ALARM_DISARMED or force_arm:
             if existing_state not in OVERRIDE_STATES:
                 if self.is_occupied():
                     if self.auto_disarm and self.is_awake() and not force_arm:
-                        _LOGGER.debug("AUTOARM Disarming for occupied during waking hours")
-                        return await self.arm("disarmed")
+                        _LOGGER.info("AUTOARM Disarming for occupied during waking hours")
+                        return await self.arm(STATE_ALARM_DISARMED)
                     elif not self.is_awake():
-                        _LOGGER.debug("AUTOARM Arming for occupied out of waking hours")
-                        return await self.arm("armed_night")
+                        _LOGGER.info("AUTOARM Arming for occupied out of waking hours")
+                        return await self.arm(STATE_ALARM_ARMED_NIGHT)
                     elif hint_arming:
-                        _LOGGER.debug(f"AUTOARM Using hinted arming state {hint_arming}")
+                        _LOGGER.info(f"AUTOARM Using hinted arming state {hint_arming}")
                         return await self.arm(hint_arming)
                     else:
-                        _LOGGER.debug("AUTOARM Defaulting to armed home")
-                        return await self.arm("armed_home")
+                        _LOGGER.info("AUTOARM Defaulting to armed home")
+                        return await self.arm(STATE_ALARM_ARMED_HOME)
                 if hint_arming:
-                    _LOGGER.debug(f"AUTOARM Using hinted arming state {hint_arming}")
+                    _LOGGER.info(f"AUTOARM Using hinted arming state {hint_arming}")
                     return await self.arm(hint_arming)
                 else:
-                    _LOGGER.debug("AUTOARM Defaulting to armed away")
-                    return await self.arm("armed_away")
+                    _LOGGER.info("AUTOARM Defaulting to armed away")
+                    return await self.arm(STATE_ALARM_ARMED_AWAY)
         return existing_state
 
     async def delayed_arm(self, arming_state, reset, requested_at):
@@ -381,11 +397,11 @@ class AlarmArmer:
         self.last_request = time.time()
         match event.data.get("action"):
             case "ALARM_PANEL_DISARM":
-                await self.arm("disarmed")
+                await self.arm(STATE_ALARM_DISARMED)
             case "ALARM_PANEL_RESET":
                 await self.reset_armed_state(force_arm=True)
             case "ALARM_PANEL_AWAY":
-                await self.arm("armed_away")
+                await self.arm(STATE_ALARM_ARMED_AWAY)
             case _:
                 self.log("AUTOARM Ignoring mobile action: %s", event.data)
 
@@ -393,12 +409,12 @@ class AlarmArmer:
     async def on_disarm_button(self, event: EventType[EventStateChangedData]):
         _LOGGER.debug("AUTOARM Disarm Button: %s", event)
         self.last_request = time.time()
-        await self.arm("disarmed")
+        await self.arm(STATE_ALARM_DISARMED)
 
     @callback
     async def on_vacation_button(self, event: EventType[EventStateChangedData]):
         _LOGGER.debug("AUTOARM Vacation Button: %s", event)
-        await self.arm("armed_vacation")
+        await self.arm(STATE_ALARM_ARMED_VACATION)
 
     @callback
     async def on_away_button(self, event: EventType[EventStateChangedData]):
@@ -408,7 +424,7 @@ class AlarmArmer:
             self.unsubscribes.append(
                 async_track_point_in_time(
                     self.hass,
-                    partial(self.delayed_arm, "armed_away", False, dt_util.utc_from_timestamp(time.time())),
+                    partial(self.delayed_arm, STATE_ALARM_ARMED_AWAY, False, dt_util.utc_from_timestamp(time.time())),
                     dt_util.utc_from_timestamp(time.time() + self.arm_away_delay),
                 )
             )
@@ -417,7 +433,7 @@ class AlarmArmer:
                 title="Arm for away process starting",
             )
         else:
-            await self.arm("armed_away")
+            await self.arm(STATE_ALARM_ARMED_AWAY)
 
     @callback
     async def on_sunrise(self):
@@ -430,7 +446,7 @@ class AlarmArmer:
             self.unsubscribes.append(
                 async_track_point_in_time(
                     self.hass,
-                    partial(self.delayed_arm, "armed_home", True, dt_util.utc_from_timestamp(time.time())),
+                    partial(self.delayed_arm, STATE_ALARM_ARMED_HOME, True, dt_util.utc_from_timestamp(time.time())),
                     dt_util.utc_from_timestamp(time.time() + sunrise_delay),
                 )
             )
