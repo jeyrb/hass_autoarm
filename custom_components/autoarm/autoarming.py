@@ -151,14 +151,17 @@ class AlarmArmer:
 
     async def initialize(self):
         _LOGGER.debug("AUTOARM Initializing ...")
-        _LOGGER.info("AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s, occupied=%s, state=%s", 
-                     self.auto_disarm, self.arm_away_delay, 
-                     self.is_awake(),
-                     self.is_occupied(),
-                     self.armed_state())
+        _LOGGER.info(
+            "AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s, occupied=%s, state=%s",
+            self.auto_disarm,
+            self.arm_away_delay,
+            self.is_awake(),
+            self.is_occupied(),
+            self.armed_state(),
+        )
 
         self.initialize_alarm_panel()
-        self.initialize_diurnal() 
+        self.initialize_diurnal()
         self.initialize_occupancy()
         self.initialize_bedtime()
         self.initialize_buttons()
@@ -306,33 +309,37 @@ class AlarmArmer:
         return awake
 
     async def reset_armed_state(self, force_arm: bool = True, hint_arming: str = None) -> str:
-        ''' Logic to automatically work out appropriate current armed state '''
+        """Logic to automatically work out appropriate current armed state"""
+        _LOGGER.debug("AUTOARM reset_armed_state(force_arm=%s,hint_arming=%s)", force_arm, hint_arming)
         existing_state = self.armed_state()
-        if existing_state != STATE_ALARM_DISARMED or force_arm:
-            if existing_state in OVERRIDE_STATES:
-                _LOGGER.debug("AUTOARM Ignoring reset for existing state: %s", existing_state)
+        if existing_state == STATE_ALARM_DISARMED and not force_arm:
+            _LOGGER.debug("AUTOARM Ignoring unforced reset for disarmed")
+            return existing_state
+        
+        if existing_state in OVERRIDE_STATES:
+            _LOGGER.debug("AUTOARM Ignoring reset for existing state: %s", existing_state)
+            return existing_state
+        
+        if self.is_occupied():
+            if self.auto_disarm and self.is_awake() and not force_arm:
+                _LOGGER.info("AUTOARM Disarming for occupied during waking hours")
+                return await self.arm(STATE_ALARM_DISARMED)
+            elif not self.is_awake():
+                _LOGGER.info("AUTOARM Arming for occupied out of waking hours")
+                return await self.arm(STATE_ALARM_ARMED_NIGHT)
+            elif hint_arming:
+                _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
+                return await self.arm(hint_arming)
             else:
-                if self.is_occupied():
-                    if self.auto_disarm and self.is_awake() and not force_arm:
-                        _LOGGER.info("AUTOARM Disarming for occupied during waking hours")
-                        return await self.arm(STATE_ALARM_DISARMED)
-                    elif not self.is_awake():
-                        _LOGGER.info("AUTOARM Arming for occupied out of waking hours")
-                        return await self.arm(STATE_ALARM_ARMED_NIGHT)
-                    elif hint_arming:
-                        _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
-                        return await self.arm(hint_arming)
-                    else:
-                        _LOGGER.info("AUTOARM Defaulting to armed home")
-                        return await self.arm(STATE_ALARM_ARMED_HOME)
-                if hint_arming:
-                    _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
-                    return await self.arm(hint_arming)
-                else:
-                    _LOGGER.info("AUTOARM Defaulting to armed away")
-                    return await self.arm(STATE_ALARM_ARMED_AWAY)
-        _LOGGER.debug("AUTOARM Default reset arm unchanged at %s", existing_state)
-        return existing_state
+                _LOGGER.info("AUTOARM Defaulting to armed home")
+                return await self.arm(STATE_ALARM_ARMED_HOME)
+            
+        if hint_arming:
+            _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
+            return await self.arm(hint_arming)
+        else:
+            _LOGGER.info("AUTOARM Defaulting to armed away")
+            return await self.arm(STATE_ALARM_ARMED_AWAY)
 
     async def delayed_arm(self, arming_state: str, reset: bool, requested_at: time) -> None:
         _LOGGER.debug("Delayed_arm %s, reset: %s", arming_state, reset)
@@ -348,7 +355,7 @@ class AlarmArmer:
         else:
             await self.arm(arming_state=arming_state)
 
-    async def arm(self, arming_state: str = None) -> None:
+    async def arm(self, arming_state: str = None) -> str:
         try:
             self.arming_in_progress.set()
             existing_state = self.armed_state()
@@ -359,6 +366,8 @@ class AlarmArmer:
             else:
                 _LOGGER.debug("Skipping arm, as %s already %s", self.alarm_panel, arming_state)
                 return existing_state
+        except Exception as e:
+            _LOGGER.debug("AUTOARM Failed to arm: %s", e)
         finally:
             self.arming_in_progress.clear()
 
