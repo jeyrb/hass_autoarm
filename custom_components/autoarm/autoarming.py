@@ -4,6 +4,7 @@ import logging
 import time
 from functools import partial
 
+from homeassistant.util import Throttle
 import homeassistant.util.dt as dt_util
 from homeassistant.components.sun import STATE_BELOW_HORIZON
 from homeassistant.const import (
@@ -20,7 +21,6 @@ from homeassistant.const import (
     STATE_ALARM_TRIGGERED,
     STATE_HOME,
     EVENT_HOMEASSISTANT_START,
-    
 )
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
@@ -311,6 +311,7 @@ class AlarmArmer:
         self.hass.states.async_set("%s.awake" % DOMAIN, awake, {})
         return awake
 
+    @Throttle(datetime.timedelta(minutes=1))
     async def reset_armed_state(self, force_arm: bool = True, hint_arming: str = None) -> str:
         """Logic to automatically work out appropriate current armed state"""
         _LOGGER.debug("AUTOARM reset_armed_state(force_arm=%s,hint_arming=%s)", force_arm, hint_arming)
@@ -318,11 +319,11 @@ class AlarmArmer:
         if existing_state == STATE_ALARM_DISARMED and not force_arm:
             _LOGGER.debug("AUTOARM Ignoring unforced reset for disarmed")
             return existing_state
-        
+
         if existing_state in OVERRIDE_STATES:
             _LOGGER.debug("AUTOARM Ignoring reset for existing state: %s", existing_state)
             return existing_state
-        
+
         if self.is_occupied():
             if self.auto_disarm and self.is_awake() and not force_arm:
                 _LOGGER.info("AUTOARM Disarming for occupied during waking hours")
@@ -336,7 +337,7 @@ class AlarmArmer:
             else:
                 _LOGGER.info("AUTOARM Defaulting to armed home")
                 return await self.arm(STATE_ALARM_ARMED_HOME)
-            
+
         if hint_arming:
             _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
             return await self.arm(hint_arming)
@@ -358,7 +359,7 @@ class AlarmArmer:
         else:
             await self.arm(arming_state=arming_state)
 
-    async def arm(self, arming_state: str = None) -> str:
+    async def arm(self, arming_state: str = None) -> str:      
         try:
             self.arming_in_progress.set()
             existing_state = self.armed_state()
