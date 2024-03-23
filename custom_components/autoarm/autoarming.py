@@ -122,7 +122,7 @@ class AlarmArmer:
         auto_disarm: bool = True,
         sleep_start: time = None,
         sleep_end: time = None,
-        sunrise_cutoff: time=None,
+        sunrise_cutoff: time = None,
         arm_away_delay=None,
         reset_button: str = None,
         away_button: str = None,
@@ -143,9 +143,10 @@ class AlarmArmer:
         self.disarm_button: str = disarm_button
         self.occupants: list[str] = occupants or []
         self.actions: list[str] = actions or []
-        self.notify_profiles: dict = notify or {}
+        self.notify_profiles: dict[str, dict] = notify or {}
         self.unsubscribes: list[callback] = []
         self.last_request: time = None
+        self.button_device: dict[str, str] = {}
         self.arming_in_progress: asyncio.Event = asyncio.Event()
 
     async def initialize(self):
@@ -161,40 +162,40 @@ class AlarmArmer:
         self.initialize_integration()
         _LOGGER.debug("AUTOARM Initialized")
 
-    def initialize_integration(self):
+    def initialize_integration(self) -> None:
         self.unsubscribes.append(self.hass.bus.async_listen("mobile_app_notification_action", self.on_mobile_action))
         self.unsubscribes.append(self.hass.bus.async_listen("homeassistant_start", self.ha_start))
 
-    def ha_start(self):
+    def ha_start(self) -> None:
         _LOGGER.debug("AUTOARM Home assistant restarted")
         self.reset_armed_state(force_arm=False)
 
-    async def async_shutdown(self, event: Event) -> None:
+    async def async_shutdown(self, _event: Event) -> None:
         _LOGGER.info("AUTOARM shutting down")
         self.shutdown()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         for unsub in self.unsubscribes:
             unsub()
         _LOGGER.info("AUTOARM shut down")
 
-    def initialize_alarm_panel(self):
+    def initialize_alarm_panel(self) -> None:
         """Set up automation for Home Assistant alarm panel
         See https://www.home-assistant.io/integrations/alarm_control_panel/
         """
         self.unsubscribes.append(async_track_state_change_event(self.hass, [self.alarm_panel], self.on_panel_change))
-        _LOGGER.debug("AUTOARM Auto-arming %s" % self.alarm_panel)
+        _LOGGER.debug("AUTOARM Auto-arming %s", self.alarm_panel)
 
-    def initialize_diurnal(self):
+    def initialize_diurnal(self) -> None:
         self.unsubscribes.append(async_track_sunrise(self.hass, self.on_sunrise, None))
         self.unsubscribes.append(async_track_sunset(self.hass, self.on_sunset, None))
 
     def initialize_occupancy(self) -> None:
         """Configure occupants, and listen for changes in their state"""
-        _LOGGER.info("AUTOARM Occupancy determined by %s" % ",".join(self.occupants))
+        _LOGGER.info("AUTOARM Occupancy determined by %s", ",".join(self.occupants))
         self.unsubscribes.append(async_track_state_change_event(self.hass, self.occupants, self.on_occupancy_change))
         _LOGGER.debug(
-            "AUTOARM Occupied: %s, Unoccupied: %s, Night: %s" % (self.is_occupied(), self.is_unoccupied(), self.is_night())
+            "AUTOARM Occupied: %s, Unoccupied: %s, Night: %s", self.is_occupied(), self.is_unoccupied(), self.is_night()
         )
 
     def initialize_bedtime(self) -> None:
@@ -211,18 +212,17 @@ class AlarmArmer:
                     self.hass, self.on_sleep_end, self.sleep_end.hour, self.sleep_end.minute, self.sleep_end.second
                 )
             )
-        _LOGGER.debug("AUTOARM Bed time from %s->%s" % (self.sleep_start, self.sleep_end))
+        _LOGGER.debug("AUTOARM Bed time from %s->%s", self.sleep_start, self.sleep_end)
 
     def initialize_buttons(self) -> None:
         """Initialize (optional) physical alarm state control buttons"""
-        self.button_device = {}
 
-        def setup_button(state, button_entity, callback):
+        def setup_button(state, button_entity, cb):
             self.button_device[state] = button_entity
             if self.button_device[state]:
-                self.unsubscribes.append(async_track_state_change_event(self.hass, [button_entity], callback))
+                self.unsubscribes.append(async_track_state_change_event(self.hass, [button_entity], cb))
 
-                _LOGGER.debug("AUTOARM Configured %s button for %s" % (state, self.button_device[state]))
+                _LOGGER.debug("AUTOARM Configured %s button for %s", state, self.button_device[state])
 
         setup_button("reset", self.reset_button, self.on_reset_button)
         setup_button("away", self.away_button, self.on_away_button)
@@ -284,7 +284,7 @@ class AlarmArmer:
     async def on_occupancy_change(self, event: EventType[EventStateChangedData]) -> None:
         entity_id, old, new = self._extract_event(event)
         existing_state = self.armed_state()
-        _LOGGER.debug("AUTOARM Occupancy Change: %s, %s, %s, %s" % (entity_id, old, new, event))
+        _LOGGER.debug("AUTOARM Occupancy Change: %s, %s, %s, %s", entity_id, old, new, event)
         if self.is_unoccupied() and existing_state not in OVERRIDE_STATES:
             await self.arm(STATE_ALARM_ARMED_AWAY)
         elif self.is_occupied() and existing_state == STATE_ALARM_ARMED_AWAY:
@@ -313,48 +313,48 @@ class AlarmArmer:
                         _LOGGER.info("AUTOARM Arming for occupied out of waking hours")
                         return await self.arm(STATE_ALARM_ARMED_NIGHT)
                     elif hint_arming:
-                        _LOGGER.info(f"AUTOARM Using hinted arming state {hint_arming}")
+                        _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
                         return await self.arm(hint_arming)
                     else:
                         _LOGGER.info("AUTOARM Defaulting to armed home")
                         return await self.arm(STATE_ALARM_ARMED_HOME)
                 if hint_arming:
-                    _LOGGER.info(f"AUTOARM Using hinted arming state {hint_arming}")
+                    _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
                     return await self.arm(hint_arming)
                 else:
                     _LOGGER.info("AUTOARM Defaulting to armed away")
                     return await self.arm(STATE_ALARM_ARMED_AWAY)
         return existing_state
 
-    async def delayed_arm(self, arming_state, reset, requested_at):
+    async def delayed_arm(self, arming_state: str, reset: bool, requested_at: time) -> None:
         _LOGGER.debug("Delayed_arm %s, reset: %s", arming_state, reset)
 
         if self.last_request is not None and requested_at is not None:
             if self.last_request > requested_at:
-                _LOGGER.debug("AUTOARM Cancelling delayed request for %s since subsequent manual action" % arming_state)
+                _LOGGER.debug("AUTOARM Cancelling delayed request for %s since subsequent manual action", arming_state)
                 return
             else:
-                _LOGGER.debug("AUTOARM Delayed execution of %s requested at %s" % (arming_state, requested_at))
+                _LOGGER.debug("AUTOARM Delayed execution of %s requested at %s", arming_state, requested_at)
         if reset:
             await self.reset_armed_state(force_arm=True, hint_arming=arming_state)
         else:
             await self.arm(arming_state=arming_state)
 
-    async def arm(self, arming_state=None):
+    async def arm(self, arming_state: str = None) -> None:
         try:
             self.arming_in_progress.set()
             existing_state = self.armed_state()
             if arming_state != existing_state:
                 self.hass.states.async_set(self.alarm_panel, arming_state)
-                _LOGGER.info("AUTOARM Setting %s from %s to %s" % (self.alarm_panel, existing_state, arming_state))
+                _LOGGER.info("AUTOARM Setting %s from %s to %s", self.alarm_panel, existing_state, arming_state)
                 return arming_state
             else:
-                _LOGGER.debug("Skipping arm, as %s already %s" % (self.alarm_panel, arming_state))
+                _LOGGER.debug("Skipping arm, as %s already %s", self.alarm_panel, arming_state)
                 return existing_state
         finally:
             self.arming_in_progress.clear()
 
-    async def notify_flex(self, message, profile="normal", title=None):
+    async def notify_flex(self, message: str, profile: str = "normal", title: str = None) -> None:
         notify_service = None
         try:
             # separately merge base dict and data sub-dict as cheap and nasty semi-deep-merge
@@ -377,26 +377,26 @@ class AlarmArmer:
                 )
 
         except Exception as e:
-            _LOGGER.error("AUTOARM %s failed %s" % (notify_service, e))
+            _LOGGER.error("AUTOARM %s failed %s", notify_service, e)
 
     @callback
-    async def on_sleep_start(self, kwargs):
-        _LOGGER.debug("AUTOARM Sleep Period Start: %s" % kwargs)
+    async def on_sleep_start(self, kwargs) -> None:
+        _LOGGER.debug("AUTOARM Sleep Period Start: %s", kwargs)
         await self.reset_armed_state(force_arm=True)
 
     @callback
-    async def on_sleep_end(self, kwargs):
-        _LOGGER.debug("AUTOARM Sleep Period End: %s" % kwargs)
+    async def on_sleep_end(self, kwargs) -> None:
+        _LOGGER.debug("AUTOARM Sleep Period End: %s", kwargs)
         await self.reset_armed_state(force_arm=False)
 
     @callback
-    async def on_reset_button(self, event: EventType[EventStateChangedData]):
+    async def on_reset_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Reset Button: %s", event)
         self.last_request = time.time()
         await self.reset_armed_state(force_arm=True)
 
     @callback
-    async def on_mobile_action(self, event):
+    async def on_mobile_action(self, event: EventType) -> None:
         _LOGGER.debug("AUTOARM Mobile Action: %s", event)
         self.last_request = time.time()
         match event.data.get("action"):
@@ -407,21 +407,21 @@ class AlarmArmer:
             case "ALARM_PANEL_AWAY":
                 await self.arm(STATE_ALARM_ARMED_AWAY)
             case _:
-                self.log("AUTOARM Ignoring mobile action: %s", event.data)
+                _LOGGER.debug("AUTOARM Ignoring mobile action: %s", event.data)
 
     @callback
-    async def on_disarm_button(self, event: EventType[EventStateChangedData]):
+    async def on_disarm_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Disarm Button: %s", event)
         self.last_request = time.time()
         await self.arm(STATE_ALARM_DISARMED)
 
     @callback
-    async def on_vacation_button(self, event: EventType[EventStateChangedData]):
+    async def on_vacation_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Vacation Button: %s", event)
         await self.arm(STATE_ALARM_ARMED_VACATION)
 
     @callback
-    async def on_away_button(self, event: EventType[EventStateChangedData]):
+    async def on_away_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Away Button: %s", event)
         self.last_request = time.time()
         if self.arm_away_delay:
@@ -440,13 +440,13 @@ class AlarmArmer:
             await self.arm(STATE_ALARM_ARMED_AWAY)
 
     @callback
-    async def on_sunrise(self):
+    async def on_sunrise(self) -> None:
         _LOGGER.debug("AUTOARM Sunrise")
         if not self.sunrise_cutoff or datetime.datetime.now().time() >= self.sunrise_cutoff:
             self.reset_armed_state(force_arm=False)
         elif self.sunrise_cutoff < self.sleep_end:
             sunrise_delay = total_secs(self.sleep_end) - total_secs(self.sunrise_cutoff)
-            _LOGGER.debug("AUTOARM Rescheduling delayed sunrise action in %s seconds" % sunrise_delay)
+            _LOGGER.debug("AUTOARM Rescheduling delayed sunrise action in %s seconds", sunrise_delay)
             self.unsubscribes.append(
                 async_track_point_in_time(
                     self.hass,
@@ -456,6 +456,6 @@ class AlarmArmer:
             )
 
     @callback
-    async def on_sunset(self):
+    async def on_sunset(self) -> None:
         _LOGGER.debug("AUTOARM Sunset")
         await self.reset_armed_state(force_arm=True)
