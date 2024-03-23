@@ -4,7 +4,6 @@ import logging
 import time
 from functools import partial
 
-from homeassistant.util import Throttle
 import homeassistant.util.dt as dt_util
 from homeassistant.components.sun import STATE_BELOW_HORIZON
 from homeassistant.const import (
@@ -150,6 +149,7 @@ class AlarmArmer:
         self.last_request: time = None
         self.button_device: dict[str, str] = {}
         self.arming_in_progress: asyncio.Event = asyncio.Event()
+        self.rate_limiter: Limiter = Limiter()
 
     async def initialize(self):
         _LOGGER.debug("AUTOARM Initializing ...")
@@ -176,7 +176,7 @@ class AlarmArmer:
         self.unsubscribes.append(self.hass.bus.async_listen(EVENT_HOMEASSISTANT_START, self.ha_start))
 
     @callback
-    async def ha_start(self, event: Event) -> None:
+    async def ha_start(self, _event: Event) -> None:
         _LOGGER.debug("AUTOARM Home assistant restarted")
         await self.reset_armed_state(force_arm=False)
 
@@ -311,7 +311,6 @@ class AlarmArmer:
         self.hass.states.async_set("%s.awake" % DOMAIN, awake, {})
         return awake
 
-    @Throttle(datetime.timedelta(minutes=1))
     async def reset_armed_state(self, force_arm: bool = True, hint_arming: str = None) -> str:
         """Logic to automatically work out appropriate current armed state"""
         _LOGGER.debug("AUTOARM reset_armed_state(force_arm=%s,hint_arming=%s)", force_arm, hint_arming)
@@ -355,11 +354,14 @@ class AlarmArmer:
             else:
                 _LOGGER.debug("AUTOARM Delayed execution of %s requested at %s", arming_state, requested_at)
         if reset:
-            await self.reset_armed_state(force_arm=True, hint_arming=arming_state, no_throttle=True)
+            await self.reset_armed_state(force_arm=True, hint_arming=arming_state)
         else:
             await self.arm(arming_state=arming_state)
 
     async def arm(self, arming_state: str = None) -> str:
+        if self.rate_limiter.triggered():
+            _LOGGER.debug("AUTOARM Rate limit triggered, skipping arm")
+            return None
         try:
             self.arming_in_progress.set()
             existing_state = self.armed_state()
@@ -414,7 +416,7 @@ class AlarmArmer:
     async def on_reset_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Reset Button: %s", event)
         self.last_request = time.time()
-        await self.reset_armed_state(force_arm=True, no_throttle=True)
+        await self.reset_armed_state(force_arm=True)
 
     @callback
     async def on_mobile_action(self, event: EventType) -> None:
@@ -480,3 +482,27 @@ class AlarmArmer:
     async def on_sunset(self) -> None:
         _LOGGER.debug("AUTOARM Sunset")
         await self.reset_armed_state(force_arm=True)
+
+
+class Limiter:
+    def __init__(self, window=60, max_calls=4):
+        self.calls = []
+        self.window = window
+        self.max_calls = max_calls
+
+    def triggered(self):
+        ''' Register a call and check if window based rate limit triggered '''
+        cut_off = time.time() - self.window
+        self.calls.append(time.time())
+        in_scope = 0
+
+        for call in self.calls[:]:
+            if call >= cut_off:
+                in_scope += 1
+            else:
+                self.calls.remove(call)
+                
+        if in_scope > self.max_calls:
+            return True
+        else:
+            return False
