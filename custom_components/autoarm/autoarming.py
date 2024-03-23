@@ -355,11 +355,11 @@ class AlarmArmer:
             else:
                 _LOGGER.debug("AUTOARM Delayed execution of %s requested at %s", arming_state, requested_at)
         if reset:
-            await self.reset_armed_state(force_arm=True, hint_arming=arming_state)
+            await self.reset_armed_state(force_arm=True, hint_arming=arming_state, no_throttle=True)
         else:
             await self.arm(arming_state=arming_state)
 
-    async def arm(self, arming_state: str = None) -> str:      
+    async def arm(self, arming_state: str = None) -> str:
         try:
             self.arming_in_progress.set()
             existing_state = self.armed_state()
@@ -414,7 +414,7 @@ class AlarmArmer:
     async def on_reset_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Reset Button: %s", event)
         self.last_request = time.time()
-        await self.reset_armed_state(force_arm=True)
+        await self.reset_armed_state(force_arm=True, no_throttle=True)
 
     @callback
     async def on_mobile_action(self, event: EventType) -> None:
