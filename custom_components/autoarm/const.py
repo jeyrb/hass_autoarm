@@ -26,6 +26,7 @@ CONF_BUTTON_ENTITY_AWAY = "away_button"
 CONF_BUTTON_ENTITY_DISARM = "disarm_button"
 CONF_OCCUPANTS = "occupants"
 CONF_THROTTLE_SECONDS = "throttle_seconds"
+CONF_THROTTLE_CALLS = "throttle_calls"
 
 NOTIFY_COMMON = "common"
 NOTIFY_QUIET = "quiet"
@@ -70,7 +71,8 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_OCCUPANTS, default=[]): vol.All(cv.ensure_list, [cv.entity_id]),
                 vol.Optional(CONF_ACTIONS, default=[]): vol.All(cv.ensure_list, [PUSH_ACTION_SCHEMA]),
                 vol.Optional(CONF_NOTIFY, default={}): NOTIFY_SCHEMA,
-                vol.Optional(CONF_THROTTLE_SECONDS): cv.positive_int
+                vol.Optional(CONF_THROTTLE_SECONDS, default=60): cv.positive_int,
+                vol.Optional(CONF_THROTTLE_CALLS, default=6): cv.positive_int,
             }
         )
     },

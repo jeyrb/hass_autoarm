@@ -26,6 +26,12 @@ predictability, especially for high latitudes where sunrise varies wildly throug
 Similarly, there's a `sunrise_cutoff` option to prevent alarm being armed at 
 4am if you live far North, like Norway or Scotland.
 
+## Throttling
+
+To guard against loops, or other reasons why arming might be triggered too often,
+rate limiting is applied around the arm call, limited to a set number of calls within
+the past so many seconds. 
+
 ## Example Configuration
 Configure in the Home Assistant config
 
@@ -39,6 +45,8 @@ Configure in the Home Assistant config
     reset_button: binary_sensor.button_left
     away_button: binary_sensor.button_right
     disarm_button: binary_sensor.button_middle
+    throttle_seconds: 30
+    throttle_calls: 6
     occupants: 
         - person.house_owner
         - person.tenant

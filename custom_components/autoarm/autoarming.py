@@ -45,6 +45,8 @@ from .const import (
     CONF_SLEEP_END,
     CONF_SLEEP_START,
     CONF_SUNRISE_CUTOFF,
+    CONF_THROTTLE_CALLS,
+    CONF_THROTTLE_SECONDS,
     CONFIG_SCHEMA,
     DOMAIN,
 )
@@ -90,6 +92,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             CONF_OCCUPANTS: config.get(CONF_OCCUPANTS, []),
             CONF_ACTIONS: config.get(CONF_ACTIONS, []),
             CONF_NOTIFY: config.get(CONF_NOTIFY, {}),
+            CONF_THROTTLE_SECONDS: config.get(CONF_THROTTLE_SECONDS, 60),
+            CONF_THROTTLE_CALLS: config.get(CONF_THROTTLE_CALLS, 6),
         },
     )
 
@@ -107,6 +111,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         occupants=config[CONF_OCCUPANTS],
         actions=config[CONF_ACTIONS],
         notify=config[CONF_NOTIFY],
+        throttle_calls=config.get(CONF_THROTTLE_CALLS, 6),
+        throttle_seconds=config.get(CONF_THROTTLE_SECONDS, 60)
     )
     await armer.initialize()
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, armer.async_shutdown)
@@ -131,6 +137,8 @@ class AlarmArmer:
         occupants: list = None,
         actions: list = None,
         notify: dict = None,
+        throttle_calls: int = 6,
+        throttle_seconds: int = 60
     ):
         self.hass: HomeAssistant = hass
         self.alarm_panel: str = alarm_panel
@@ -149,7 +157,8 @@ class AlarmArmer:
         self.last_request: time = None
         self.button_device: dict[str, str] = {}
         self.arming_in_progress: asyncio.Event = asyncio.Event()
-        self.rate_limiter: Limiter = Limiter()
+        self.rate_limiter: Limiter = Limiter(window=throttle_seconds, 
+                                             max_calls=throttle_calls)
 
     async def initialize(self):
         _LOGGER.debug("AUTOARM Initializing ...")
@@ -489,6 +498,7 @@ class Limiter:
         self.calls = []
         self.window = window
         self.max_calls = max_calls
+        _LOGGER.debug("AUTOARM Rate limiter initialized with window %s and max_calls %s", window, max_calls)
 
     def triggered(self):
         ''' Register a call and check if window based rate limit triggered '''
