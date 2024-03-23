@@ -19,6 +19,8 @@ from homeassistant.const import (
     STATE_ALARM_PENDING,
     STATE_ALARM_TRIGGERED,
     STATE_HOME,
+    EVENT_HOMEASSISTANT_START,
+    
 )
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
@@ -171,10 +173,10 @@ class AlarmArmer:
 
     def initialize_integration(self) -> None:
         self.unsubscribes.append(self.hass.bus.async_listen("mobile_app_notification_action", self.on_mobile_action))
-        self.unsubscribes.append(self.hass.bus.async_listen("homeassistant_start", self.ha_start))
+        self.unsubscribes.append(self.hass.bus.async_listen(EVENT_HOMEASSISTANT_START, self.ha_start))
 
     @callback
-    async def ha_start(self) -> None:
+    async def ha_start(self, event: Event) -> None:
         _LOGGER.debug("AUTOARM Home assistant restarted")
         await self.reset_armed_state(force_arm=False)
 
