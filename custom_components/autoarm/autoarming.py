@@ -151,7 +151,10 @@ class AlarmArmer:
 
     async def initialize(self):
         _LOGGER.debug("AUTOARM Initializing ...")
-        _LOGGER.info("AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s", self.auto_disarm, self.arm_away_delay, self.is_awake())
+        _LOGGER.info("AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s, state=%s", 
+                     self.auto_disarm, self.arm_away_delay, 
+                     self.is_awake(),
+                     self.armed_state())
 
         self.initialize_alarm_panel()
         self.initialize_diurnal()
@@ -302,9 +305,12 @@ class AlarmArmer:
         return awake
 
     async def reset_armed_state(self, force_arm: bool = True, hint_arming: str = None) -> str:
+        ''' Logic to automatically work out appropriate current armed state '''
         existing_state = self.armed_state()
         if existing_state != STATE_ALARM_DISARMED or force_arm:
-            if existing_state not in OVERRIDE_STATES:
+            if existing_state in OVERRIDE_STATES:
+                _LOGGER.info("AUTOARM Ignoring reset for existing state: %s", existing_state)
+            else:
                 if self.is_occupied():
                     if self.auto_disarm and self.is_awake() and not force_arm:
                         _LOGGER.info("AUTOARM Disarming for occupied during waking hours")
@@ -324,6 +330,7 @@ class AlarmArmer:
                 else:
                     _LOGGER.info("AUTOARM Defaulting to armed away")
                     return await self.arm(STATE_ALARM_ARMED_AWAY)
+        _LOGGER.debug("AUTOARM Default reset arm unchanged at %s", existing_state)
         return existing_state
 
     async def delayed_arm(self, arming_state: str, reset: bool, requested_at: time) -> None:
