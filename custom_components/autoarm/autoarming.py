@@ -310,7 +310,7 @@ class AlarmArmer:
         existing_state = self.armed_state()
         if existing_state != STATE_ALARM_DISARMED or force_arm:
             if existing_state in OVERRIDE_STATES:
-                _LOGGER.info("AUTOARM Ignoring reset for existing state: %s", existing_state)
+                _LOGGER.debug("AUTOARM Ignoring reset for existing state: %s", existing_state)
             else:
                 if self.is_occupied():
                     if self.auto_disarm and self.is_awake() and not force_arm:
