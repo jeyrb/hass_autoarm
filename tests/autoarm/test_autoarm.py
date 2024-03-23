@@ -7,7 +7,7 @@ TEST_PANEL = "alarm_control_panel.test_panel"
 
 
 @pytest.fixture
-async def autoarm(hass: HomeAssistant):
+async def autoarmer(hass: HomeAssistant):
     uut = AlarmArmer(hass, TEST_PANEL, occupants=["person.tester_bob"])
     await uut.initialize()
     yield uut

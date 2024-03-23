@@ -1,3 +1,7 @@
+[![Rhizomatics Open Source](https://avatars.githubusercontent.com/u/162821163?s=96&v=4)](https://github.com/rhizomatics) Rhizomatics Open Source
+
+
+
 # Alarm Auto Arming
 
 Automate the arming and disarming of the built-in Home Assistant alarm 
