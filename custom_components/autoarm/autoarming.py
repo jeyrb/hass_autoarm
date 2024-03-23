@@ -272,7 +272,7 @@ class AlarmArmer:
         _LOGGER.info("AUTOARM Panel Change: %s,%s: %s-->%s", entity_id, event.event_type, old, new)
 
         if new in ZOMBIE_STATES:
-            _LOGGER.debug("AUTOARM Dezombifying %s ...", new)
+            _LOGGER.warning("AUTOARM Dezombifying %s ...", new)
             await self.reset_armed_state()
         else:
             message = "Home Assistant alert level now set from %s to %s" % (old, new)
