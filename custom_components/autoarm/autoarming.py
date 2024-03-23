@@ -165,7 +165,7 @@ class AlarmArmer:
         self.initialize_occupancy()
         self.initialize_bedtime()
         self.initialize_buttons()
-        self.reset_armed_state(force_arm=False)
+        await self.reset_armed_state(force_arm=False)
         self.initialize_integration()
         _LOGGER.info("AUTOARM Initialized, state: %s", self.armed_state())
 
@@ -173,9 +173,10 @@ class AlarmArmer:
         self.unsubscribes.append(self.hass.bus.async_listen("mobile_app_notification_action", self.on_mobile_action))
         self.unsubscribes.append(self.hass.bus.async_listen("homeassistant_start", self.ha_start))
 
-    def ha_start(self) -> None:
+    @callback
+    async def ha_start(self) -> None:
         _LOGGER.debug("AUTOARM Home assistant restarted")
-        self.reset_armed_state(force_arm=False)
+        await self.reset_armed_state(force_arm=False)
 
     async def async_shutdown(self, _event: Event) -> None:
         _LOGGER.info("AUTOARM shutting down")
@@ -460,7 +461,7 @@ class AlarmArmer:
     async def on_sunrise(self) -> None:
         _LOGGER.debug("AUTOARM Sunrise")
         if not self.sunrise_cutoff or datetime.datetime.now().time() >= self.sunrise_cutoff:
-            self.reset_armed_state(force_arm=False)
+            await self.reset_armed_state(force_arm=False)
         elif self.sunrise_cutoff < self.sleep_end:
             sunrise_delay = total_secs(self.sleep_end) - total_secs(self.sunrise_cutoff)
             _LOGGER.debug("AUTOARM Rescheduling delayed sunrise action in %s seconds", sunrise_delay)
