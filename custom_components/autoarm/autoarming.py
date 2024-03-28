@@ -154,7 +154,7 @@ class AlarmArmer:
         self.actions: list[str] = actions or []
         self.notify_profiles: dict[str, dict] = notify or {}
         self.unsubscribes: list[callback] = []
-        self.last_request: time = None
+        self.last_request: datetime.datetime = None
         self.button_device: dict[str, str] = {}
         self.arming_in_progress: asyncio.Event = asyncio.Event()
         self.rate_limiter: Limiter = Limiter(window=throttle_seconds, 
@@ -353,7 +353,8 @@ class AlarmArmer:
             _LOGGER.info("AUTOARM Defaulting to armed away")
             return await self.arm(STATE_ALARM_ARMED_AWAY)
 
-    async def delayed_arm(self, arming_state: str, reset: bool, requested_at: time, *args) -> None:
+    async def delayed_arm(self, arming_state: str, reset: bool, 
+                          requested_at: time, triggered_at: datetime.datetime) -> None:
         _LOGGER.debug("Delayed_arm %s, reset: %s", arming_state, reset)
 
         if self.last_request is not None and requested_at is not None:
@@ -424,13 +425,13 @@ class AlarmArmer:
     @callback
     async def on_reset_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Reset Button: %s", event)
-        self.last_request = time.time()
+        self.register_request()
         await self.reset_armed_state(force_arm=True)
 
     @callback
     async def on_mobile_action(self, event: EventType) -> None:
         _LOGGER.debug("AUTOARM Mobile Action: %s", event)
-        self.last_request = time.time()
+        self.register_request()
         match event.data.get("action"):
             case "ALARM_PANEL_DISARM":
                 await self.arm(STATE_ALARM_DISARMED)
@@ -444,7 +445,7 @@ class AlarmArmer:
     @callback
     async def on_disarm_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Disarm Button: %s", event)
-        self.last_request = time.time()
+        self.register_request()
         await self.arm(STATE_ALARM_DISARMED)
 
     @callback
@@ -452,10 +453,13 @@ class AlarmArmer:
         _LOGGER.debug("AUTOARM Vacation Button: %s", event)
         await self.arm(STATE_ALARM_ARMED_VACATION)
 
+    def register_request(self):
+        self.last_request = datetime.datetime.now(datetime.UTC)
+        
     @callback
     async def on_away_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Away Button: %s", event)
-        self.last_request = time.time()
+        self.register_request()
         if self.arm_away_delay:
             self.unsubscribes.append(
                 async_track_point_in_time(

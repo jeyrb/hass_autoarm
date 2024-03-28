@@ -1,9 +1,8 @@
-
 from homeassistant.const import CONF_ICON
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 
-
+import asyncio
 from custom_components.autoarm.const import (
     CONF_ACTION,
     CONF_ACTIONS,
@@ -26,7 +25,7 @@ CONFIG = {
     DOMAIN: {
         CONF_ALARM_PANEL: "alarm_panel.testing",
         CONF_AUTO_ARM: True,
-        CONF_ARM_AWAY_DELAY: 180,
+        CONF_ARM_AWAY_DELAY: 1,
         CONF_SLEEP_START: "09:00:00",
         CONF_SLEEP_END: "22:00:00",
         CONF_SUNRISE_CUTOFF: "06:30:00",
@@ -96,3 +95,15 @@ async def test_disarm_on_mobile_action(hass: HomeAssistant) -> None:
     hass.bus.async_fire("mobile_app_notification_action", {"action": "ALARM_PANEL_DISARM"})
     await hass.async_block_till_done()
     assert hass.states.get("alarm_panel.testing").state == "disarmed"
+
+
+async def test_delayed_arm_on_button(hass: HomeAssistant) -> None:
+
+    hass.states.async_set("alarm_panel.testing", "disarmed")
+    assert await async_setup_component(hass, "autoarm", CONFIG)
+    await hass.async_block_till_done()
+
+    hass.states.async_set("binary_sensor.button_right", "on")
+    await hass.async_block_till_done()
+    await asyncio.sleep(2)
+    assert hass.states.get("alarm_panel.testing").state == "armed_away"
