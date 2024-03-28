@@ -353,7 +353,7 @@ class AlarmArmer:
             _LOGGER.info("AUTOARM Defaulting to armed away")
             return await self.arm(STATE_ALARM_ARMED_AWAY)
 
-    async def delayed_arm(self, arming_state: str, reset: bool, requested_at: time) -> None:
+    async def delayed_arm(self, arming_state: str, reset: bool, requested_at: time, *args) -> None:
         _LOGGER.debug("Delayed_arm %s, reset: %s", arming_state, reset)
 
         if self.last_request is not None and requested_at is not None:
