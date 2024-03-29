@@ -112,7 +112,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         actions=config[CONF_ACTIONS],
         notify=config[CONF_NOTIFY],
         throttle_calls=config.get(CONF_THROTTLE_CALLS, 6),
-        throttle_seconds=config.get(CONF_THROTTLE_SECONDS, 60)
+        throttle_seconds=config.get(CONF_THROTTLE_SECONDS, 60),
     )
     await armer.initialize()
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, armer.async_shutdown)
@@ -138,7 +138,7 @@ class AlarmArmer:
         actions: list = None,
         notify: dict = None,
         throttle_calls: int = 6,
-        throttle_seconds: int = 60
+        throttle_seconds: int = 60,
     ):
         self.hass: HomeAssistant = hass
         self.alarm_panel: str = alarm_panel
@@ -157,11 +157,12 @@ class AlarmArmer:
         self.last_request: datetime.datetime = None
         self.button_device: dict[str, str] = {}
         self.arming_in_progress: asyncio.Event = asyncio.Event()
-        self.rate_limiter: Limiter = Limiter(window=throttle_seconds, 
-                                             max_calls=throttle_calls)
+        self.rate_limiter: Limiter = Limiter(window=throttle_seconds, max_calls=throttle_calls)
 
-    async def initialize(self):
-        _LOGGER.debug("AUTOARM Initializing ...")
+    async def initialize(self) -> None:
+        """
+        Async initialization
+        """
         _LOGGER.info(
             "AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s, occupied=%s, state=%s",
             self.auto_disarm,
@@ -285,7 +286,7 @@ class AlarmArmer:
             await self.reset_armed_state()
         else:
             message = "Home Assistant alert level now set from %s to %s" % (old, new)
-            await self.notify_flex(message, title="Alarm now %s" % new, profile="quiet")
+            await self.notify(message, title="Alarm now %s" % new, profile="quiet")
 
     def _extract_event(self, event: EventType) -> tuple:
         entity_id = old = new = None
@@ -301,6 +302,12 @@ class AlarmArmer:
 
     @callback
     async def on_occupancy_change(self, event: EventType[EventStateChangedData]) -> None:
+        """
+        Listener for person state events
+
+        Args:
+            event (EventType[EventStateChangedData]): state change event
+        """
         entity_id, old, new = self._extract_event(event)
         existing_state = self.armed_state()
         _LOGGER.debug("AUTOARM Occupancy Change: %s, %s, %s, %s", entity_id, old, new, event)
@@ -310,6 +317,12 @@ class AlarmArmer:
             await self.reset_armed_state()
 
     def is_awake(self) -> bool:
+        """
+        Use the sleeping time config to work out if occupants should be awake now
+
+        Returns:
+            bool: True is in defined waking time
+        """
         awake = False
         if self.sleep_start and self.sleep_end:
             now = datetime.datetime.now()
@@ -353,9 +366,10 @@ class AlarmArmer:
             _LOGGER.info("AUTOARM Defaulting to armed away")
             return await self.arm(STATE_ALARM_ARMED_AWAY)
 
-    async def delayed_arm(self, arming_state: str, reset: bool, 
-                          requested_at: time, triggered_at: datetime.datetime) -> None:
-        _LOGGER.debug("Delayed_arm %s, reset: %s", arming_state, reset)
+    async def delayed_arm(
+        self, arming_state: str, reset: bool, requested_at: datetime.datetime, triggered_at: datetime.datetime
+    ) -> None:
+        _LOGGER.debug("Delayed_arm %s, reset: %s, triggered at: %s", arming_state, reset, triggered_at)
 
         if self.last_request is not None and requested_at is not None:
             if self.last_request > requested_at:
@@ -369,6 +383,15 @@ class AlarmArmer:
             await self.arm(arming_state=arming_state)
 
     async def arm(self, arming_state: str = None) -> str:
+        """
+        Change alarm panel state
+
+        Args:
+            arming_state (str, optional): _description_. Defaults to None.
+
+        Returns:
+            str: New arming state
+        """
         if self.rate_limiter.triggered():
             _LOGGER.debug("AUTOARM Rate limit triggered, skipping arm")
             return None
@@ -387,7 +410,7 @@ class AlarmArmer:
         finally:
             self.arming_in_progress.clear()
 
-    async def notify_flex(self, message: str, profile: str = "normal", title: str = None) -> None:
+    async def notify(self, message: str, profile: str = "normal", title: str = None) -> None:
         notify_service = None
         try:
             # separately merge base dict and data sub-dict as cheap and nasty semi-deep-merge
@@ -455,7 +478,7 @@ class AlarmArmer:
 
     def register_request(self):
         self.last_request = datetime.datetime.now(datetime.UTC)
-        
+
     @callback
     async def on_away_button(self, event: EventType[EventStateChangedData]) -> None:
         _LOGGER.debug("AUTOARM Away Button: %s", event)
@@ -468,7 +491,7 @@ class AlarmArmer:
                     dt_util.utc_from_timestamp(time.time() + self.arm_away_delay),
                 )
             )
-            await self.notify_flex(
+            await self.notify(
                 "Alarm will be armed for away in %s seconds" % self.arm_away_delay,
                 title="Arm for away process starting",
             )
@@ -498,6 +521,10 @@ class AlarmArmer:
 
 
 class Limiter:
+    """
+    Rate limiting tracker
+    """
+
     def __init__(self, window=60, max_calls=4):
         self.calls = []
         self.window = window
@@ -505,7 +532,7 @@ class Limiter:
         _LOGGER.debug("AUTOARM Rate limiter initialized with window %s and max_calls %s", window, max_calls)
 
     def triggered(self):
-        ''' Register a call and check if window based rate limit triggered '''
+        """Register a call and check if window based rate limit triggered"""
         cut_off = time.time() - self.window
         self.calls.append(time.time())
         in_scope = 0
@@ -515,7 +542,7 @@ class Limiter:
                 in_scope += 1
             else:
                 self.calls.remove(call)
-                
+
         if in_scope > self.max_calls:
             return True
         else:

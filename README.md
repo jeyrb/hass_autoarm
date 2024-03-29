@@ -1,38 +1,36 @@
 [![Rhizomatics Open Source](https://avatars.githubusercontent.com/u/162821163?s=96&v=4)](https://github.com/rhizomatics) Rhizomatics Open Source
 
-
-
 # Alarm Auto Arming
 
-Automate the arming and disarming of the built-in Home Assistant alarm 
+Automate the arming and disarming of the built-in Home Assistant alarm
 control panel, with additional support for manual override via remote
 control buttons, and mobile push actionable notifications.
 
-
 ## Setup
 
-Register this GitHub repo as a custom repo 
-in your [HACS]( https://hacs.xyz) configuration. 
+Register this GitHub repo as a custom repo
+in your [HACS]( https://hacs.xyz) configuration.
 
 Notifications will work with any HomeAssistant notification implementation
 but works best with [Supernotifier](https://jeyrb.github.io/hass_supernotify/) for multi-channel notifications with mobile actions.
 
 ## Diurnal settings
 
-Arming can happen strictly by sunset and sunrise. 
+Arming can happen strictly by sunset and sunrise.
 Alternatively, a defined `sleep_start` and `sleep_end` can be specified, so there's more
 predictability, especially for high latitudes where sunrise varies wildly through the year.
 
-Similarly, there's a `sunrise_cutoff` option to prevent alarm being armed at 
+Similarly, there's a `sunrise_cutoff` option to prevent alarm being armed at
 4am if you live far North, like Norway or Scotland.
 
 ## Throttling
 
 To guard against loops, or other reasons why arming might be triggered too often,
 rate limiting is applied around the arm call, limited to a set number of calls within
-the past so many seconds. 
+the past so many seconds.
 
 ## Example Configuration
+
 Configure in the Home Assistant config
 
 ```yaml
