@@ -11,7 +11,7 @@
         "--max-line-length=128"
     ],
     "python.analysis.include": [
-        "custom_components/supernotify/**",
+        "custom_components/autoarm/**",
         "tests/**",
         "conftest.py"
     ],
