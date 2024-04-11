@@ -1,8 +1,9 @@
+import asyncio
+
 from homeassistant.const import CONF_ICON
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 
-import asyncio
 from custom_components.autoarm.const import (
     CONF_ACTION,
     CONF_ACTIONS,

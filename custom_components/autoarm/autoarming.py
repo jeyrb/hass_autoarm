@@ -3,10 +3,12 @@ import datetime
 import logging
 import time
 from functools import partial
+from typing import cast
 
 import homeassistant.util.dt as dt_util
 from homeassistant.components.sun import STATE_BELOW_HORIZON
 from homeassistant.const import (
+    EVENT_HOMEASSISTANT_START,
     EVENT_HOMEASSISTANT_STOP,
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_ARMED_CUSTOM_BYPASS,
@@ -19,9 +21,8 @@ from homeassistant.const import (
     STATE_ALARM_PENDING,
     STATE_ALARM_TRIGGERED,
     STATE_HOME,
-    EVENT_HOMEASSISTANT_START,
 )
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.event import (
     EventStateChangedData,
     async_track_point_in_time,
@@ -57,13 +58,12 @@ _LOGGER = logging.getLogger(__name__)
 def load_time(v):
     if isinstance(v, datetime.time):
         return v
-    elif v is None:
+    if v is None:
         return None
-    else:
-        return datetime.datetime.strptime(v, "%H:%M:%S").time()
+    return datetime.datetime.strptime(v, "%H:%M:%S").time()
 
 
-def total_secs(t: time) -> int:
+def total_secs(t: datetime.time) -> int:
     return t.hour * 3600 + t.minute * 60 + t.second
 
 
@@ -101,9 +101,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass,
         alarm_panel=config[CONF_ALARM_PANEL],
         auto_disarm=config[CONF_AUTO_ARM],
-        sleep_start=config.get(CONF_SLEEP_START),
-        sleep_end=config.get(CONF_SLEEP_END),
-        sunrise_cutoff=config.get(CONF_SUNRISE_CUTOFF),
+        sleep_start=cast(datetime.time, config.get(CONF_SLEEP_START)),
+        sleep_end=cast(datetime.time, config.get(CONF_SLEEP_END)),
+        sunrise_cutoff=cast(datetime.time, config.get(CONF_SUNRISE_CUTOFF)),
         arm_away_delay=config[CONF_ARM_AWAY_DELAY],
         reset_button=config.get(CONF_BUTTON_ENTITY_RESET),
         away_button=config.get(CONF_BUTTON_ENTITY_AWAY),
@@ -127,42 +127,40 @@ class AlarmArmer:
         hass: HomeAssistant,
         alarm_panel: str,
         auto_disarm: bool = True,
-        sleep_start: time = None,
-        sleep_end: time = None,
-        sunrise_cutoff: time = None,
-        arm_away_delay=None,
-        reset_button: str = None,
-        away_button: str = None,
-        disarm_button: str = None,
-        occupants: list = None,
-        actions: list = None,
-        notify: dict = None,
+        sleep_start: datetime.time | None = None,
+        sleep_end: datetime.time | None = None,
+        sunrise_cutoff: datetime.time | None = None,
+        arm_away_delay: int | None = None,
+        reset_button: str | None = None,
+        away_button: str | None = None,
+        disarm_button: str | None = None,
+        occupants: list | None = None,
+        actions: list | None = None,
+        notify: dict | None = None,
         throttle_calls: int = 6,
         throttle_seconds: int = 60,
     ):
         self.hass: HomeAssistant = hass
         self.alarm_panel: str = alarm_panel
         self.auto_disarm: bool = auto_disarm
-        self.sleep_start: time = sleep_start
-        self.sleep_end: time = sleep_end
-        self.sunrise_cutoff: time = sunrise_cutoff
-        self.arm_away_delay: int = arm_away_delay
-        self.reset_button: str = reset_button
-        self.away_button: str = away_button
-        self.disarm_button: str = disarm_button
+        self.sleep_start: datetime.time | None = sleep_start
+        self.sleep_end: datetime.time | None = sleep_end
+        self.sunrise_cutoff: datetime.time | None = sunrise_cutoff
+        self.arm_away_delay: int | None = arm_away_delay
+        self.reset_button: str | None = reset_button
+        self.away_button: str | None = away_button
+        self.disarm_button: str | None = disarm_button
         self.occupants: list[str] = occupants or []
         self.actions: list[str] = actions or []
         self.notify_profiles: dict[str, dict] = notify or {}
-        self.unsubscribes: list[callback] = []
-        self.last_request: datetime.datetime = None
+        self.unsubscribes: list = []
+        self.last_request: datetime.datetime | None = None
         self.button_device: dict[str, str] = {}
         self.arming_in_progress: asyncio.Event = asyncio.Event()
         self.rate_limiter: Limiter = Limiter(window=throttle_seconds, max_calls=throttle_calls)
 
     async def initialize(self) -> None:
-        """
-        Async initialization
-        """
+        """Async initialization"""
         _LOGGER.info(
             "AUTOARM auto_disarm=%s, arm_delay=%s, awake=%s, occupied=%s, state=%s",
             self.auto_disarm,
@@ -200,15 +198,18 @@ class AlarmArmer:
         _LOGGER.info("AUTOARM shut down")
 
     def initialize_alarm_panel(self) -> None:
-        """Set up automation for Home Assistant alarm panel
+        """
+        Set up automation for Home Assistant alarm panel
+
         See https://www.home-assistant.io/integrations/alarm_control_panel/
         """
         self.unsubscribes.append(async_track_state_change_event(self.hass, [self.alarm_panel], self.on_panel_change))
         _LOGGER.debug("AUTOARM Auto-arming %s", self.alarm_panel)
 
     def initialize_diurnal(self) -> None:
-        self.unsubscribes.append(async_track_sunrise(self.hass, self.on_sunrise, None))
-        self.unsubscribes.append(async_track_sunset(self.hass, self.on_sunset, None))
+        # events API expects a function, however underlying HassJob is fine with coroutines
+        self.unsubscribes.append(async_track_sunrise(self.hass, self.on_sunrise, None))  # type: ignore
+        self.unsubscribes.append(async_track_sunset(self.hass, self.on_sunset, None))  # type: ignore
 
     def initialize_occupancy(self) -> None:
         """Configure occupants, and listen for changes in their state"""
@@ -248,7 +249,7 @@ class AlarmArmer:
         setup_button("away", self.away_button, self.on_away_button)
         setup_button("disarm", self.disarm_button, self.on_disarm_button)
 
-    def safe_state(self, state: str) -> str:
+    def safe_state(self, state: State) -> str | None:
         try:
             return state.state if state is not None else None
         except Exception as e:
@@ -264,7 +265,7 @@ class AlarmArmer:
     def is_night(self) -> bool:
         return self.safe_state(self.hass.states.get("sun.sun")) == STATE_BELOW_HORIZON
 
-    def armed_state(self) -> str:
+    def armed_state(self) -> str | None:
         return self.safe_state(self.hass.states.get(self.alarm_panel))
 
     @callback
@@ -285,7 +286,7 @@ class AlarmArmer:
             _LOGGER.warning("AUTOARM Dezombifying %s ...", new)
             await self.reset_armed_state()
         else:
-            message = "Home Assistant alert level now set from %s to %s" % (old, new)
+            message = f"Home Assistant alert level now set from {old} to {new}"
             await self.notify(message, title="Alarm now %s" % new, profile="quiet")
 
     def _extract_event(self, event: EventType) -> tuple:
@@ -320,7 +321,7 @@ class AlarmArmer:
         """
         Use the sleeping time config to work out if occupants should be awake now
 
-        Returns:
+        Returns
             bool: True is in defined waking time
         """
         awake = False
@@ -333,7 +334,7 @@ class AlarmArmer:
         self.hass.states.async_set("%s.awake" % DOMAIN, awake, {})
         return awake
 
-    async def reset_armed_state(self, force_arm: bool = True, hint_arming: str = None) -> str:
+    async def reset_armed_state(self, force_arm: bool = True, hint_arming: str | None = None) -> str | None:
         """Logic to automatically work out appropriate current armed state"""
         _LOGGER.debug("AUTOARM reset_armed_state(force_arm=%s,hint_arming=%s)", force_arm, hint_arming)
         existing_state = self.armed_state()
@@ -349,22 +350,20 @@ class AlarmArmer:
             if self.auto_disarm and self.is_awake() and not force_arm:
                 _LOGGER.info("AUTOARM Disarming for occupied during waking hours")
                 return await self.arm(STATE_ALARM_DISARMED)
-            elif not self.is_awake():
+            if not self.is_awake():
                 _LOGGER.info("AUTOARM Arming for occupied out of waking hours")
                 return await self.arm(STATE_ALARM_ARMED_NIGHT)
-            elif hint_arming:
+            if hint_arming:
                 _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
                 return await self.arm(hint_arming)
-            else:
-                _LOGGER.info("AUTOARM Defaulting to armed home")
-                return await self.arm(STATE_ALARM_ARMED_HOME)
+            _LOGGER.info("AUTOARM Defaulting to armed home")
+            return await self.arm(STATE_ALARM_ARMED_HOME)
 
         if hint_arming:
             _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
             return await self.arm(hint_arming)
-        else:
-            _LOGGER.info("AUTOARM Defaulting to armed away")
-            return await self.arm(STATE_ALARM_ARMED_AWAY)
+        _LOGGER.info("AUTOARM Defaulting to armed away")
+        return await self.arm(STATE_ALARM_ARMED_AWAY)
 
     async def delayed_arm(
         self, arming_state: str, reset: bool, requested_at: datetime.datetime, triggered_at: datetime.datetime
@@ -375,21 +374,21 @@ class AlarmArmer:
             if self.last_request > requested_at:
                 _LOGGER.debug("AUTOARM Cancelling delayed request for %s since subsequent manual action", arming_state)
                 return
-            else:
-                _LOGGER.debug("AUTOARM Delayed execution of %s requested at %s", arming_state, requested_at)
+            _LOGGER.debug("AUTOARM Delayed execution of %s requested at %s", arming_state, requested_at)
         if reset:
             await self.reset_armed_state(force_arm=True, hint_arming=arming_state)
         else:
             await self.arm(arming_state=arming_state)
+        return None
 
-    async def arm(self, arming_state: str = None) -> str:
+    async def arm(self, arming_state: str | None = None) -> str | None:
         """
         Change alarm panel state
 
         Args:
             arming_state (str, optional): _description_. Defaults to None.
 
-        Returns:
+        Returns
             str: New arming state
         """
         if self.rate_limiter.triggered():
@@ -402,26 +401,27 @@ class AlarmArmer:
                 self.hass.states.async_set(self.alarm_panel, arming_state)
                 _LOGGER.info("AUTOARM Setting %s from %s to %s", self.alarm_panel, existing_state, arming_state)
                 return arming_state
-            else:
-                _LOGGER.debug("Skipping arm, as %s already %s", self.alarm_panel, arming_state)
-                return existing_state
+            _LOGGER.debug("Skipping arm, as %s already %s", self.alarm_panel, arming_state)
+            return existing_state
         except Exception as e:
             _LOGGER.debug("AUTOARM Failed to arm: %s", e)
         finally:
             self.arming_in_progress.clear()
+        return None
 
-    async def notify(self, message: str, profile: str = "normal", title: str = None) -> None:
+    async def notify(self, message: str, profile: str = "normal", title: str | None = None) -> None:
         notify_service = None
         try:
             # separately merge base dict and data sub-dict as cheap and nasty semi-deep-merge
             selected_profile = self.notify_profiles.get(profile)
             base_profile = self.notify_profiles.get("common", {})
             base_profile_data = base_profile.get("data", {})
-            selected_profile_data = selected_profile.get("data", {})
             merged_profile = dict(base_profile)
-            merged_profile.update(selected_profile)
             merged_profile_data = dict(base_profile_data)
-            merged_profile_data.update(selected_profile_data)
+            if selected_profile:
+                selected_profile_data: dict = selected_profile.get("data", {})
+                merged_profile.update(selected_profile)
+                merged_profile_data.update(selected_profile_data)
             merged_profile["data"] = merged_profile_data
             notify_service = merged_profile["service"].replace("notify.", "")
 
@@ -503,7 +503,7 @@ class AlarmArmer:
         _LOGGER.debug("AUTOARM Sunrise")
         if not self.sunrise_cutoff or datetime.datetime.now().time() >= self.sunrise_cutoff:
             await self.reset_armed_state(force_arm=False)
-        elif self.sunrise_cutoff < self.sleep_end:
+        elif self.sleep_end and self.sunrise_cutoff < self.sleep_end:
             sunrise_delay = total_secs(self.sleep_end) - total_secs(self.sunrise_cutoff)
             _LOGGER.debug("AUTOARM Rescheduling delayed sunrise action in %s seconds", sunrise_delay)
             self.unsubscribes.append(
@@ -521,9 +521,7 @@ class AlarmArmer:
 
 
 class Limiter:
-    """
-    Rate limiting tracker
-    """
+    """Rate limiting tracker"""
 
     def __init__(self, window=60, max_calls=4):
         self.calls = []
@@ -545,5 +543,4 @@ class Limiter:
 
         if in_scope > self.max_calls:
             return True
-        else:
-            return False
+        return False

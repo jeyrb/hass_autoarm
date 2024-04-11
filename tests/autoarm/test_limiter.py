@@ -14,6 +14,7 @@ def test_multiple_calls_trigger():
     assert not limiter.triggered()
     assert limiter.triggered()
 
+
 def test_window_works_trigger():
     limiter = Limiter(3, max_calls=2)
     assert not limiter.triggered()

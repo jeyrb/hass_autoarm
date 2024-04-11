@@ -1,4 +1,4 @@
-[![Rhizomatics Open Source](https://avatars.githubusercontent.com/u/162821163?s=96&v=4)](https://github.com/rhizomatics) Rhizomatics Open Source
+[![Rhizomatics Open Source](https://avatars.githubusercontent.com/u/162821163?s=96&v=4)](https://github.com/rhizomatics)
 
 # Alarm Auto Arming
 
@@ -45,18 +45,18 @@ Configure in the Home Assistant config
     disarm_button: binary_sensor.button_middle
     throttle_seconds: 30
     throttle_calls: 6
-    occupants: 
+    occupants:
         - person.house_owner
         - person.tenant
     notify:
         common:
             service: notify.supernotifier
-            data: 
-                actions: 
+            data:
+                actions:
                     action_groups: alarm_panel
                     action_category: alarm_panel
-        quiet: 
-            data: 
+        quiet:
+            data:
                 priority: low
         normal:
             data:
@@ -73,3 +73,4 @@ Configure in the Home Assistant config
           icon: sfsymbols:airplane
 
 ```
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
