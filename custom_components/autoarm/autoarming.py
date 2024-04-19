@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import time
+from collections.abc import Callable
 from functools import partial
 from typing import cast
 
@@ -53,14 +54,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def load_time(v):
-    if isinstance(v, datetime.time):
-        return v
-    if v is None:
-        return None
-    return datetime.datetime.strptime(v, "%H:%M:%S").time()
 
 
 def total_secs(t: datetime.time) -> int:
@@ -147,8 +140,9 @@ class AlarmArmer:
         notify: dict | None = None,
         throttle_calls: int = 6,
         throttle_seconds: int = 60,
-    ):
+    ) -> None:
         self.hass: HomeAssistant = hass
+        self.local_tz = dt_util.get_time_zone(self.hass.config.time_zone)
         self.alarm_panel: str = alarm_panel
         self.auto_disarm: bool = auto_disarm
         self.sleep_start: datetime.time | None = sleep_start
@@ -177,6 +171,7 @@ class AlarmArmer:
             self.is_occupied(),
             self.armed_state(),
         )
+
         self.initialize_alarm_panel()
         self.initialize_diurnal()
         self.initialize_occupancy()
@@ -205,8 +200,7 @@ class AlarmArmer:
         _LOGGER.info("AUTOARM shut down")
 
     def initialize_alarm_panel(self) -> None:
-        """
-        Set up automation for Home Assistant alarm panel
+        """Set up automation for Home Assistant alarm panel
 
         See https://www.home-assistant.io/integrations/alarm_control_panel/
         """
@@ -258,7 +252,7 @@ class AlarmArmer:
     def initialize_buttons(self) -> None:
         """Initialize (optional) physical alarm state control buttons"""
 
-        def setup_button(state, button_entity, cb):
+        def setup_button(state: str, button_entity: str, cb: Callable) -> None:
             self.button_device[state] = button_entity
             if self.button_device[state]:
                 self.unsubscribes.append(async_track_state_change_event(self.hass, [button_entity], cb))
@@ -269,9 +263,12 @@ class AlarmArmer:
                     self.button_device[state],
                 )
 
-        setup_button("reset", self.reset_button, self.on_reset_button)
-        setup_button("away", self.away_button, self.on_away_button)
-        setup_button("disarm", self.disarm_button, self.on_disarm_button)
+        if self.reset_button:
+            setup_button("reset", self.reset_button, self.on_reset_button)
+        if self.away_button:
+            setup_button("away", self.away_button, self.on_away_button)
+        if self.disarm_button:
+            setup_button("disarm", self.disarm_button, self.on_disarm_button)
 
     def safe_state(self, state: State) -> str | None:
         try:
@@ -333,11 +330,12 @@ class AlarmArmer:
 
     @callback
     async def on_occupancy_change(self, event: EventType[EventStateChangedData]) -> None:
-        """
-        Listener for person state events
+        """Listen for person state events
 
         Args:
+        ----
             event (EventType[EventStateChangedData]): state change event
+
         """
         entity_id, old, new = self._extract_event(event)
         existing_state = self.armed_state()
@@ -348,15 +346,16 @@ class AlarmArmer:
             await self.reset_armed_state()
 
     def is_awake(self) -> bool:
-        """
-        Use the sleeping time config to work out if occupants should be awake now
+        """Use the sleeping time config to work out if occupants should be awake now
 
         Returns
+        -------
             bool: True is in defined waking time
+
         """
         awake = False
         if self.sleep_start and self.sleep_end:
-            now = datetime.datetime.now()
+            now = datetime.datetime.now(tz=self.local_tz)
             if now.time() >= self.sleep_end and now.time() <= self.sleep_start:
                 awake = True
         else:
@@ -429,17 +428,19 @@ class AlarmArmer:
             await self.reset_armed_state(force_arm=True, hint_arming=arming_state)
         else:
             await self.arm(arming_state=arming_state)
-        return None
+        return
 
     async def arm(self, arming_state: str | None = None) -> str | None:
-        """
-        Change alarm panel state
+        """Change alarm panel state
 
         Args:
+        ----
             arming_state (str, optional): _description_. Defaults to None.
 
-        Returns
+        Returns:
+        -------
             str: New arming state
+
         """
         if self.rate_limiter.triggered():
             _LOGGER.debug("AUTOARM Rate limit triggered, skipping arm")
@@ -493,13 +494,13 @@ class AlarmArmer:
             _LOGGER.error("AUTOARM %s failed %s", notify_service, e)
 
     @callback
-    async def on_sleep_start(self, kwargs) -> None:
-        _LOGGER.debug("AUTOARM Sleep Period Start: %s", kwargs)
+    async def on_sleep_start(self, called_time: datetime.datetime) -> None:
+        _LOGGER.debug("AUTOARM Sleep Period Start: %s", called_time)
         await self.reset_armed_state(force_arm=True)
 
     @callback
-    async def on_sleep_end(self, kwargs) -> None:
-        _LOGGER.debug("AUTOARM Sleep Period End: %s", kwargs)
+    async def on_sleep_end(self, called_time: datetime.datetime) -> None:
+        _LOGGER.debug("AUTOARM Sleep Period End: %s", called_time)
         await self.reset_armed_state(force_arm=False)
 
     @callback
@@ -533,7 +534,7 @@ class AlarmArmer:
         _LOGGER.debug("AUTOARM Vacation Button: %s", event)
         await self.arm(STATE_ALARM_ARMED_VACATION)
 
-    def register_request(self):
+    def register_request(self) -> None:
         self.last_request = datetime.datetime.now(datetime.UTC)
 
     @callback
@@ -563,7 +564,7 @@ class AlarmArmer:
     @callback
     async def on_sunrise(self) -> None:
         _LOGGER.debug("AUTOARM Sunrise")
-        if not self.sunrise_cutoff or datetime.datetime.now().time() >= self.sunrise_cutoff:
+        if not self.sunrise_cutoff or datetime.datetime.now(tz=self.local_tz).time() >= self.sunrise_cutoff:
             await self.reset_armed_state(force_arm=False)
         elif self.sleep_end and self.sunrise_cutoff < self.sleep_end:
             sunrise_delay = total_secs(self.sleep_end) - total_secs(self.sunrise_cutoff)
@@ -593,17 +594,17 @@ class AlarmArmer:
 class Limiter:
     """Rate limiting tracker"""
 
-    def __init__(self, window=60, max_calls=4):
-        self.calls = []
-        self.window = window
-        self.max_calls = max_calls
+    def __init__(self, window: int = 60, max_calls: int = 4) -> None:
+        self.calls: list[float] = []
+        self.window: int = window
+        self.max_calls: int = max_calls
         _LOGGER.debug(
             "AUTOARM Rate limiter initialized with window %s and max_calls %s",
             window,
             max_calls,
         )
 
-    def triggered(self):
+    def triggered(self) -> bool:
         """Register a call and check if window based rate limit triggered"""
         cut_off = time.time() - self.window
         self.calls.append(time.time())
@@ -615,6 +616,4 @@ class Limiter:
             else:
                 self.calls.remove(call)
 
-        if in_scope > self.max_calls:
-            return True
-        return False
+        return in_scope > self.max_calls

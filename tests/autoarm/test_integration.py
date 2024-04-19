@@ -52,7 +52,6 @@ CONFIG = {
 
 
 async def test_configure(hass: HomeAssistant) -> None:
-
     assert await async_setup_component(hass, "autoarm", CONFIG)
 
     await hass.async_block_till_done()
@@ -62,7 +61,6 @@ async def test_configure(hass: HomeAssistant) -> None:
 
 
 async def test_arm_on_away(hass: HomeAssistant) -> None:
-
     hass.states.async_set("person.house_owner", "not_home", {"friendly_name": "Jack"})
     hass.states.async_set("person.tenant", "home", {"friendly_name": "Jill"})
 
@@ -77,7 +75,6 @@ async def test_arm_on_away(hass: HomeAssistant) -> None:
 
 
 async def test_disarm_on_button(hass: HomeAssistant) -> None:
-
     hass.states.async_set("alarm_panel.testing", "armed_away")
     assert await async_setup_component(hass, "autoarm", CONFIG)
     await hass.async_block_till_done()
@@ -88,7 +85,6 @@ async def test_disarm_on_button(hass: HomeAssistant) -> None:
 
 
 async def test_disarm_on_mobile_action(hass: HomeAssistant) -> None:
-
     hass.states.async_set("alarm_panel.testing", "armed_away")
     assert await async_setup_component(hass, "autoarm", CONFIG)
     await hass.async_block_till_done()
@@ -99,7 +95,6 @@ async def test_disarm_on_mobile_action(hass: HomeAssistant) -> None:
 
 
 async def test_delayed_arm_on_button(hass: HomeAssistant) -> None:
-
     hass.states.async_set("alarm_panel.testing", "disarmed")
     assert await async_setup_component(hass, "autoarm", CONFIG)
     await hass.async_block_till_done()

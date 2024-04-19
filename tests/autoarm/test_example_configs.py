@@ -1,23 +1,26 @@
 import os
 import os.path
+from pathlib import Path
+from typing import Any
 
 import pytest
-import yaml
+from homeassistant.config import (
+    load_yaml_config_file,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 
 from custom_components.autoarm.const import DOMAIN
 
-EXAMPLES_ROOT = "examples"
+EXAMPLES_ROOT = Path("examples")
 
 examples = os.listdir(EXAMPLES_ROOT)
 
 
 @pytest.mark.parametrize("config_name", examples)
 async def test_examples(hass: HomeAssistant, config_name) -> None:
+    config: dict[Any, Any] = await hass.async_add_executor_job(load_yaml_config_file, EXAMPLES_ROOT / config_name)
 
-    with open(os.path.join(EXAMPLES_ROOT, config_name), encoding="utf-8") as f:
-        config = yaml.safe_load(f)
     assert await async_setup_component(hass, DOMAIN, config)
     await hass.async_block_till_done()
     autoarm_state = hass.states.get("autoarm.configured")

@@ -48,34 +48,30 @@ PUSH_ACTION_SCHEMA = vol.Schema(
 
 NOTIFY_DEF_SCHEMA = vol.Schema({vol.Optional(CONF_SERVICE): cv.service, vol.Optional(CONF_DATA): dict})
 
-NOTIFY_SCHEMA = vol.Schema(
-    {
-        vol.Optional(NOTIFY_COMMON): {vol.Required(CONF_SERVICE): cv.service, vol.Optional(CONF_DATA): dict},
-        vol.Optional(NOTIFY_QUIET): NOTIFY_DEF_SCHEMA,
-        vol.Optional(NOTIFY_NORMAL): NOTIFY_DEF_SCHEMA,
-    }
-)
+NOTIFY_SCHEMA = vol.Schema({
+    vol.Optional(NOTIFY_COMMON): {vol.Required(CONF_SERVICE): cv.service, vol.Optional(CONF_DATA): dict},
+    vol.Optional(NOTIFY_QUIET): NOTIFY_DEF_SCHEMA,
+    vol.Optional(NOTIFY_NORMAL): NOTIFY_DEF_SCHEMA,
+})
 
 CONFIG_SCHEMA = vol.Schema(
     {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_ALARM_PANEL): cv.entity_id,
-                vol.Optional(CONF_AUTO_ARM, default=True): cv.boolean,
-                vol.Optional(CONF_SLEEP_START): cv.time,
-                vol.Optional(CONF_SLEEP_END): cv.time,
-                vol.Optional(CONF_SUNRISE_CUTOFF): cv.time,
-                vol.Optional(CONF_ARM_AWAY_DELAY, default=180): cv.positive_int,
-                vol.Optional(CONF_BUTTON_ENTITY_RESET): cv.entity_id,
-                vol.Optional(CONF_BUTTON_ENTITY_AWAY): cv.entity_id,
-                vol.Optional(CONF_BUTTON_ENTITY_DISARM): cv.entity_id,
-                vol.Optional(CONF_OCCUPANTS, default=[]): vol.All(cv.ensure_list, [cv.entity_id]),
-                vol.Optional(CONF_ACTIONS, default=[]): vol.All(cv.ensure_list, [PUSH_ACTION_SCHEMA]),
-                vol.Optional(CONF_NOTIFY, default={}): NOTIFY_SCHEMA,
-                vol.Optional(CONF_THROTTLE_SECONDS, default=60): cv.positive_int,
-                vol.Optional(CONF_THROTTLE_CALLS, default=6): cv.positive_int,
-            }
-        )
+        DOMAIN: vol.Schema({
+            vol.Required(CONF_ALARM_PANEL): cv.entity_id,
+            vol.Optional(CONF_AUTO_ARM, default=True): cv.boolean,
+            vol.Optional(CONF_SLEEP_START): cv.time,
+            vol.Optional(CONF_SLEEP_END): cv.time,
+            vol.Optional(CONF_SUNRISE_CUTOFF): cv.time,
+            vol.Optional(CONF_ARM_AWAY_DELAY, default=180): cv.positive_int,
+            vol.Optional(CONF_BUTTON_ENTITY_RESET): cv.entity_id,
+            vol.Optional(CONF_BUTTON_ENTITY_AWAY): cv.entity_id,
+            vol.Optional(CONF_BUTTON_ENTITY_DISARM): cv.entity_id,
+            vol.Optional(CONF_OCCUPANTS, default=[]): vol.All(cv.ensure_list, [cv.entity_id]),
+            vol.Optional(CONF_ACTIONS, default=[]): vol.All(cv.ensure_list, [PUSH_ACTION_SCHEMA]),
+            vol.Optional(CONF_NOTIFY, default={}): NOTIFY_SCHEMA,
+            vol.Optional(CONF_THROTTLE_SECONDS, default=60): cv.positive_int,
+            vol.Optional(CONF_THROTTLE_CALLS, default=6): cv.positive_int,
+        })
     },
     extra=vol.ALLOW_EXTRA,
 )
