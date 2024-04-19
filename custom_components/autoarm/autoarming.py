@@ -67,8 +67,17 @@ def total_secs(t: datetime.time) -> int:
     return t.hour * 3600 + t.minute * 60 + t.second
 
 
-OVERRIDE_STATES = (STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_VACATION, STATE_ALARM_ARMED_CUSTOM_BYPASS)
-EPHEMERAL_STATES = (STATE_ALARM_PENDING, STATE_ALARM_ARMING, STATE_ALARM_DISARMING, STATE_ALARM_TRIGGERED)
+OVERRIDE_STATES = (
+    STATE_ALARM_ARMED_AWAY,
+    STATE_ALARM_ARMED_VACATION,
+    STATE_ALARM_ARMED_CUSTOM_BYPASS,
+)
+EPHEMERAL_STATES = (
+    STATE_ALARM_PENDING,
+    STATE_ALARM_ARMING,
+    STATE_ALARM_DISARMING,
+    STATE_ALARM_TRIGGERED,
+)
 ZOMBIE_STATES = ("unknown", "unavailable")
 NS_MOBILE_ACTIONS = "mobile_actions"
 
@@ -121,7 +130,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 class AlarmArmer:
-
     def __init__(
         self,
         hass: HomeAssistant,
@@ -169,7 +177,6 @@ class AlarmArmer:
             self.is_occupied(),
             self.armed_state(),
         )
-
         self.initialize_alarm_panel()
         self.initialize_diurnal()
         self.initialize_occupancy()
@@ -216,7 +223,10 @@ class AlarmArmer:
         _LOGGER.info("AUTOARM Occupancy determined by %s", ",".join(self.occupants))
         self.unsubscribes.append(async_track_state_change_event(self.hass, self.occupants, self.on_occupancy_change))
         _LOGGER.debug(
-            "AUTOARM Occupied: %s, Unoccupied: %s, Night: %s", self.is_occupied(), self.is_unoccupied(), self.is_night()
+            "AUTOARM Occupied: %s, Unoccupied: %s, Night: %s",
+            self.is_occupied(),
+            self.is_unoccupied(),
+            self.is_night(),
         )
 
     def initialize_bedtime(self) -> None:
@@ -224,13 +234,23 @@ class AlarmArmer:
         if self.sleep_start:
             self.unsubscribes.append(
                 async_track_utc_time_change(
-                    self.hass, self.on_sleep_start, self.sleep_start.hour, self.sleep_start.minute, self.sleep_start.second
+                    self.hass,
+                    self.on_sleep_start,
+                    self.sleep_start.hour,
+                    self.sleep_start.minute,
+                    self.sleep_start.second,
+                    local=True,
                 )
             )
         if self.sleep_end:
             self.unsubscribes.append(
                 async_track_utc_time_change(
-                    self.hass, self.on_sleep_end, self.sleep_end.hour, self.sleep_end.minute, self.sleep_end.second
+                    self.hass,
+                    self.on_sleep_end,
+                    self.sleep_end.hour,
+                    self.sleep_end.minute,
+                    self.sleep_end.second,
+                    local=True,
                 )
             )
         _LOGGER.debug("AUTOARM Bed time from %s->%s", self.sleep_start, self.sleep_end)
@@ -243,7 +263,11 @@ class AlarmArmer:
             if self.button_device[state]:
                 self.unsubscribes.append(async_track_state_change_event(self.hass, [button_entity], cb))
 
-                _LOGGER.debug("AUTOARM Configured %s button for %s", state, self.button_device[state])
+                _LOGGER.debug(
+                    "AUTOARM Configured %s button for %s",
+                    state,
+                    self.button_device[state],
+                )
 
         setup_button("reset", self.reset_button, self.on_reset_button)
         setup_button("away", self.away_button, self.on_away_button)
@@ -280,7 +304,13 @@ class AlarmArmer:
                 new,
             )
             return
-        _LOGGER.info("AUTOARM Panel Change: %s,%s: %s-->%s", entity_id, event.event_type, old, new)
+        _LOGGER.info(
+            "AUTOARM Panel Change: %s,%s: %s-->%s",
+            entity_id,
+            event.event_type,
+            old,
+            new,
+        )
 
         if new in ZOMBIE_STATES:
             _LOGGER.warning("AUTOARM Dezombifying %s ...", new)
@@ -336,7 +366,11 @@ class AlarmArmer:
 
     async def reset_armed_state(self, force_arm: bool = True, hint_arming: str | None = None) -> str | None:
         """Logic to automatically work out appropriate current armed state"""
-        _LOGGER.debug("AUTOARM reset_armed_state(force_arm=%s,hint_arming=%s)", force_arm, hint_arming)
+        _LOGGER.debug(
+            "AUTOARM reset_armed_state(force_arm=%s,hint_arming=%s)",
+            force_arm,
+            hint_arming,
+        )
         existing_state = self.armed_state()
         if existing_state == STATE_ALARM_DISARMED and not force_arm:
             _LOGGER.debug("AUTOARM Ignoring unforced reset for disarmed")
@@ -366,15 +400,31 @@ class AlarmArmer:
         return await self.arm(STATE_ALARM_ARMED_AWAY)
 
     async def delayed_arm(
-        self, arming_state: str, reset: bool, requested_at: datetime.datetime, triggered_at: datetime.datetime
+        self,
+        arming_state: str,
+        reset: bool,
+        requested_at: datetime.datetime,
+        triggered_at: datetime.datetime,
     ) -> None:
-        _LOGGER.debug("Delayed_arm %s, reset: %s, triggered at: %s", arming_state, reset, triggered_at)
+        _LOGGER.debug(
+            "Delayed_arm %s, reset: %s, triggered at: %s",
+            arming_state,
+            reset,
+            triggered_at,
+        )
 
         if self.last_request is not None and requested_at is not None:
             if self.last_request > requested_at:
-                _LOGGER.debug("AUTOARM Cancelling delayed request for %s since subsequent manual action", arming_state)
+                _LOGGER.debug(
+                    "AUTOARM Cancelling delayed request for %s since subsequent manual action",
+                    arming_state,
+                )
                 return
-            _LOGGER.debug("AUTOARM Delayed execution of %s requested at %s", arming_state, requested_at)
+            _LOGGER.debug(
+                "AUTOARM Delayed execution of %s requested at %s",
+                arming_state,
+                requested_at,
+            )
         if reset:
             await self.reset_armed_state(force_arm=True, hint_arming=arming_state)
         else:
@@ -399,7 +449,12 @@ class AlarmArmer:
             existing_state = self.armed_state()
             if arming_state != existing_state:
                 self.hass.states.async_set(self.alarm_panel, arming_state)
-                _LOGGER.info("AUTOARM Setting %s from %s to %s", self.alarm_panel, existing_state, arming_state)
+                _LOGGER.info(
+                    "AUTOARM Setting %s from %s to %s",
+                    self.alarm_panel,
+                    existing_state,
+                    arming_state,
+                )
                 return arming_state
             _LOGGER.debug("Skipping arm, as %s already %s", self.alarm_panel, arming_state)
             return existing_state
@@ -429,7 +484,9 @@ class AlarmArmer:
             if merged_profile:
                 data = merged_profile.get("data", {})
                 await self.hass.services.async_call(
-                    "notify", notify_service, service_data={"message": message, "title": title, "data": data}
+                    "notify",
+                    notify_service,
+                    service_data={"message": message, "title": title, "data": data},
                 )
 
         except Exception as e:
@@ -487,7 +544,12 @@ class AlarmArmer:
             self.unsubscribes.append(
                 async_track_point_in_time(
                     self.hass,
-                    partial(self.delayed_arm, STATE_ALARM_ARMED_AWAY, False, dt_util.utc_from_timestamp(time.time())),
+                    partial(
+                        self.delayed_arm,
+                        STATE_ALARM_ARMED_AWAY,
+                        False,
+                        dt_util.utc_from_timestamp(time.time()),
+                    ),
                     dt_util.utc_from_timestamp(time.time() + self.arm_away_delay),
                 )
             )
@@ -505,11 +567,19 @@ class AlarmArmer:
             await self.reset_armed_state(force_arm=False)
         elif self.sleep_end and self.sunrise_cutoff < self.sleep_end:
             sunrise_delay = total_secs(self.sleep_end) - total_secs(self.sunrise_cutoff)
-            _LOGGER.debug("AUTOARM Rescheduling delayed sunrise action in %s seconds", sunrise_delay)
+            _LOGGER.debug(
+                "AUTOARM Rescheduling delayed sunrise action in %s seconds",
+                sunrise_delay,
+            )
             self.unsubscribes.append(
                 async_track_point_in_time(
                     self.hass,
-                    partial(self.delayed_arm, STATE_ALARM_ARMED_HOME, True, dt_util.utc_from_timestamp(time.time())),
+                    partial(
+                        self.delayed_arm,
+                        STATE_ALARM_ARMED_HOME,
+                        True,
+                        dt_util.utc_from_timestamp(time.time()),
+                    ),
                     dt_util.utc_from_timestamp(time.time() + sunrise_delay),
                 )
             )
@@ -527,7 +597,11 @@ class Limiter:
         self.calls = []
         self.window = window
         self.max_calls = max_calls
-        _LOGGER.debug("AUTOARM Rate limiter initialized with window %s and max_calls %s", window, max_calls)
+        _LOGGER.debug(
+            "AUTOARM Rate limiter initialized with window %s and max_calls %s",
+            window,
+            max_calls,
+        )
 
     def triggered(self):
         """Register a call and check if window based rate limit triggered"""
