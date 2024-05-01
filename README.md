@@ -31,9 +31,11 @@ the past so many seconds.
 
 ## Example Configuration
 
-Configure in the Home Assistant config
+Configure in the Home Assistant config, either as a block in a config file, or as a file
+of its own using an ``include``.
 
 ```yaml
+autoarm:
     alarm_panel: alarm_panel.testing
     auto_arm: True
     sleep_start: "09:00:00"
@@ -74,3 +76,25 @@ Configure in the Home Assistant config
 
 ```
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+
+## Alarm Panel Configuration
+
+Autoarm will work with any Home Assistant [Alarm Control Panel](https://www.home-assistant.io/integrations/alarm_control_panel/) based integration, whether with a physical panel, virtual, virtual with generic switches for some modes, or entirely automated.
+
+If you don't already have an alarm panel, set up a default manual as below, which creates the
+state machine for armed/disarmed status. This is all you need in the way of alarm support for AutoArm to function. You can also choose whether a PIN code is needed or not to arm or disarm.
+
+```yml
+alarm_control_panel:
+  - platform: manual
+    name: Home Alarm Control
+    code_arm_required: false
+    arming_time: 0
+    delay_time: 0
+    disarm_after_trigger: false
+    trigger_time: 0
+```
+
+See [Home Assistant Manual Control Panel docs](https://www.home-assistant.io/integrations/manual/) for more info.
+
+There's also a handy [Dashboard Alarm Panel](https://www.home-assistant.io/dashboards/alarm-panel/) widget to add to your Home Assistant dashboard.
