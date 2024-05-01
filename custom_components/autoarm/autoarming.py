@@ -79,7 +79,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     _ = CONFIG_SCHEMA
     config = config.get(DOMAIN, {})
     hass.states.async_set(
-        "%s.configured" % DOMAIN,
+        f"{DOMAIN}.configured",
         True,
         {
             CONF_ALARM_PANEL: config.get(CONF_ALARM_PANEL),
@@ -314,7 +314,7 @@ class AlarmArmer:
             await self.reset_armed_state()
         else:
             message = f"Home Assistant alert level now set from {old} to {new}"
-            await self.notify(message, title="Alarm now %s" % new, profile="quiet")
+            await self.notify(message, title=f"Alarm now {new}", profile="quiet")
 
     def _extract_event(self, event: EventType) -> tuple:
         entity_id = old = new = None
@@ -360,7 +360,7 @@ class AlarmArmer:
                 awake = True
         else:
             awake = not self.is_night()
-        self.hass.states.async_set("%s.awake" % DOMAIN, awake, {})
+        self.hass.states.async_set(f"{DOMAIN}.awake", awake, {})
         return awake
 
     async def reset_armed_state(self, force_arm: bool = True, hint_arming: str | None = None) -> str | None:
@@ -555,7 +555,7 @@ class AlarmArmer:
                 )
             )
             await self.notify(
-                "Alarm will be armed for away in %s seconds" % self.arm_away_delay,
+                f"Alarm will be armed for away in {self.arm_away_delay} seconds",
                 title="Arm for away process starting",
             )
         else:
