@@ -340,8 +340,10 @@ class AlarmArmer:
         existing_state = self.armed_state()
         _LOGGER.debug("AUTOARM Occupancy Change: %s, %s, %s, %s", entity_id, old, new, event)
         if self.is_unoccupied() and existing_state not in OVERRIDE_STATES:
+            _LOGGER.info("AUTOARM Now unoccupied, arming away")
             await self.arm(STATE_ALARM_ARMED_AWAY)
         elif self.is_occupied() and existing_state == STATE_ALARM_ARMED_AWAY:
+            _LOGGER.info("AUTOARM Now occupied, resetting armed state")
             await self.reset_armed_state()
 
     def is_awake(self) -> bool:
@@ -524,13 +526,13 @@ class AlarmArmer:
 
     @callback
     async def on_disarm_button(self, event: Event) -> None:
-        _LOGGER.debug("AUTOARM Disarm Button: %s", event)
+        _LOGGER.info("AUTOARM Disarm Button: %s", event)
         self.register_request()
         await self.arm(STATE_ALARM_DISARMED)
 
     @callback
     async def on_vacation_button(self, event: Event) -> None:
-        _LOGGER.debug("AUTOARM Vacation Button: %s", event)
+        _LOGGER.info("AUTOARM Vacation Button: %s", event)
         await self.arm(STATE_ALARM_ARMED_VACATION)
 
     def register_request(self) -> None:
@@ -538,7 +540,7 @@ class AlarmArmer:
 
     @callback
     async def on_away_button(self, event: Event) -> None:
-        _LOGGER.debug("AUTOARM Away Button: %s", event)
+        _LOGGER.info("AUTOARM Away Button: %s", event)
         self.register_request()
         if self.arm_away_delay:
             self.unsubscribes.append(
