@@ -25,14 +25,13 @@ from homeassistant.const import (
 )
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.event import (
-    EventStateChangedData,
     async_track_point_in_time,
     async_track_state_change_event,
     async_track_sunrise,
     async_track_sunset,
     async_track_utc_time_change,
 )
-from homeassistant.helpers.typing import ConfigType, EventType
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_ACTIONS,
@@ -290,7 +289,7 @@ class AlarmArmer:
         return self.safe_state(self.hass.states.get(self.alarm_panel))
 
     @callback
-    async def on_panel_change(self, event: EventType) -> None:
+    async def on_panel_change(self, event: Event) -> None:
         entity_id, old, new = self._extract_event(event)
         if self.arming_in_progress.is_set():
             _LOGGER.debug(
@@ -316,7 +315,7 @@ class AlarmArmer:
             message = f"Home Assistant alert level now set from {old} to {new}"
             await self.notify(message, title=f"Alarm now {new}", profile="quiet")
 
-    def _extract_event(self, event: EventType) -> tuple:
+    def _extract_event(self, event: Event) -> tuple:
         entity_id = old = new = None
         if event and event.data:
             entity_id = event.data.get("entity_id")
@@ -329,12 +328,12 @@ class AlarmArmer:
         return entity_id, old, new
 
     @callback
-    async def on_occupancy_change(self, event: EventType[EventStateChangedData]) -> None:
+    async def on_occupancy_change(self, event: Event) -> None:
         """Listen for person state events
 
         Args:
         ----
-            event (EventType[EventStateChangedData]): state change event
+            event (Event[EventStateChangedData]): state change event
 
         """
         entity_id, old, new = self._extract_event(event)
@@ -504,13 +503,13 @@ class AlarmArmer:
         await self.reset_armed_state(force_arm=False)
 
     @callback
-    async def on_reset_button(self, event: EventType[EventStateChangedData]) -> None:
+    async def on_reset_button(self, event: Event) -> None:
         _LOGGER.debug("AUTOARM Reset Button: %s", event)
         self.register_request()
         await self.reset_armed_state(force_arm=True)
 
     @callback
-    async def on_mobile_action(self, event: EventType) -> None:
+    async def on_mobile_action(self, event: Event) -> None:
         _LOGGER.debug("AUTOARM Mobile Action: %s", event)
         self.register_request()
         match event.data.get("action"):
@@ -524,13 +523,13 @@ class AlarmArmer:
                 _LOGGER.debug("AUTOARM Ignoring mobile action: %s", event.data)
 
     @callback
-    async def on_disarm_button(self, event: EventType[EventStateChangedData]) -> None:
+    async def on_disarm_button(self, event: Event) -> None:
         _LOGGER.debug("AUTOARM Disarm Button: %s", event)
         self.register_request()
         await self.arm(STATE_ALARM_DISARMED)
 
     @callback
-    async def on_vacation_button(self, event: EventType[EventStateChangedData]) -> None:
+    async def on_vacation_button(self, event: Event) -> None:
         _LOGGER.debug("AUTOARM Vacation Button: %s", event)
         await self.arm(STATE_ALARM_ARMED_VACATION)
 
@@ -538,7 +537,7 @@ class AlarmArmer:
         self.last_request = datetime.datetime.now(datetime.UTC)
 
     @callback
-    async def on_away_button(self, event: EventType[EventStateChangedData]) -> None:
+    async def on_away_button(self, event: Event) -> None:
         _LOGGER.debug("AUTOARM Away Button: %s", event)
         self.register_request()
         if self.arm_away_delay:
