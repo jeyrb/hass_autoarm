@@ -59,11 +59,7 @@ def total_secs(t: datetime.time) -> int:
     return t.hour * 3600 + t.minute * 60 + t.second
 
 
-OVERRIDE_STATES = (
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_ARMED_VACATION,
-    STATE_ALARM_ARMED_CUSTOM_BYPASS,
-)
+OVERRIDE_STATES = (STATE_ALARM_ARMED_VACATION, STATE_ALARM_ARMED_CUSTOM_BYPASS)
 EPHEMERAL_STATES = (
     STATE_ALARM_PENDING,
     STATE_ALARM_ARMING,
@@ -339,8 +335,8 @@ class AlarmArmer:
         entity_id, old, new = self._extract_event(event)
         existing_state = self.armed_state()
         _LOGGER.debug("AUTOARM Occupancy Change: %s, %s, %s, %s", entity_id, old, new, event)
-        if self.is_unoccupied() and existing_state not in OVERRIDE_STATES:
-            _LOGGER.info("AUTOARM Now unoccupied, arming away")
+        if self.is_unoccupied() and existing_state in (STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED, STATE_ALARM_ARMED_NIGHT):
+            _LOGGER.info("AUTOARM Now unoccupied, arming")
             await self.arm(STATE_ALARM_ARMED_AWAY)
         elif self.is_occupied() and existing_state == STATE_ALARM_ARMED_AWAY:
             _LOGGER.info("AUTOARM Now occupied, resetting armed state")
