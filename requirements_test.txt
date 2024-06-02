@@ -1,7 +1,7 @@
 pytest>=7.4.3
 pytest-cov
-pytest-homeassistant-custom-component>=0.13.88
+pytest-homeassistant-custom-component==0.13.125
 pytest-asyncio
 pytest-unordered
-homeassistant-stubs==2024.2.2
+homeassistant-stubs>=2024.5.5
 ruff
