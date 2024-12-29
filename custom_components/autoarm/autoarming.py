@@ -7,23 +7,14 @@ from functools import partial
 from typing import cast
 
 import homeassistant.util.dt as dt_util
+from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 from homeassistant.components.sun import STATE_BELOW_HORIZON
 from homeassistant.const import (
     EVENT_HOMEASSISTANT_START,
     EVENT_HOMEASSISTANT_STOP,
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_ARMED_CUSTOM_BYPASS,
-    STATE_ALARM_ARMED_HOME,
-    STATE_ALARM_ARMED_NIGHT,
-    STATE_ALARM_ARMED_VACATION,
-    STATE_ALARM_ARMING,
-    STATE_ALARM_DISARMED,
-    STATE_ALARM_DISARMING,
-    STATE_ALARM_PENDING,
-    STATE_ALARM_TRIGGERED,
     STATE_HOME,
 )
-from homeassistant.core import Event, HomeAssistant, State, callback
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, State, callback
 from homeassistant.helpers.event import (
     async_track_point_in_time,
     async_track_state_change_event,
@@ -59,12 +50,12 @@ def total_secs(t: datetime.time) -> int:
     return t.hour * 3600 + t.minute * 60 + t.second
 
 
-OVERRIDE_STATES = (STATE_ALARM_ARMED_VACATION, STATE_ALARM_ARMED_CUSTOM_BYPASS)
+OVERRIDE_STATES = (AlarmControlPanelState.ARMED_VACATION, AlarmControlPanelState.ARMED_CUSTOM_BYPASS)
 EPHEMERAL_STATES = (
-    STATE_ALARM_PENDING,
-    STATE_ALARM_ARMING,
-    STATE_ALARM_DISARMING,
-    STATE_ALARM_TRIGGERED,
+    AlarmControlPanelState.PENDING,
+    AlarmControlPanelState.ARMING,
+    AlarmControlPanelState.DISARMING,
+    AlarmControlPanelState.TRIGGERED,
 )
 ZOMBIE_STATES = ("unknown", "unavailable")
 NS_MOBILE_ACTIONS = "mobile_actions"
@@ -285,7 +276,7 @@ class AlarmArmer:
         return self.safe_state(self.hass.states.get(self.alarm_panel))
 
     @callback
-    async def on_panel_change(self, event: Event) -> None:
+    async def on_panel_change(self, event: Event[EventStateChangedData]) -> None:
         entity_id, old, new = self._extract_event(event)
         if self.arming_in_progress.is_set():
             _LOGGER.debug(
@@ -311,7 +302,7 @@ class AlarmArmer:
             message = f"Home Assistant alert level now set from {old} to {new}"
             await self.notify(message, title=f"Alarm now {new}", profile="quiet")
 
-    def _extract_event(self, event: Event) -> tuple:
+    def _extract_event(self, event: Event[EventStateChangedData]) -> tuple:
         entity_id = old = new = None
         if event and event.data:
             entity_id = event.data.get("entity_id")
@@ -324,7 +315,7 @@ class AlarmArmer:
         return entity_id, old, new
 
     @callback
-    async def on_occupancy_change(self, event: Event) -> None:
+    async def on_occupancy_change(self, event: Event[EventStateChangedData]) -> None:
         """Listen for person state events
 
         Args:
@@ -335,10 +326,14 @@ class AlarmArmer:
         entity_id, old, new = self._extract_event(event)
         existing_state = self.armed_state()
         _LOGGER.debug("AUTOARM Occupancy Change: %s, %s, %s, %s", entity_id, old, new, event)
-        if self.is_unoccupied() and existing_state in (STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED, STATE_ALARM_ARMED_NIGHT):
+        if self.is_unoccupied() and existing_state in (
+            AlarmControlPanelState.ARMED_HOME,
+            AlarmControlPanelState.DISARMED,
+            AlarmControlPanelState.ARMED_NIGHT,
+        ):
             _LOGGER.info("AUTOARM Now unoccupied, arming")
-            await self.arm(STATE_ALARM_ARMED_AWAY)
-        elif self.is_occupied() and existing_state == STATE_ALARM_ARMED_AWAY:
+            await self.arm(AlarmControlPanelState.ARMED_AWAY)
+        elif self.is_occupied() and existing_state == AlarmControlPanelState.ARMED_AWAY:
             _LOGGER.info("AUTOARM Now occupied, resetting armed state")
             await self.reset_armed_state()
 
@@ -368,7 +363,7 @@ class AlarmArmer:
             hint_arming,
         )
         existing_state = self.armed_state()
-        if existing_state == STATE_ALARM_DISARMED and not force_arm:
+        if existing_state == AlarmControlPanelState.DISARMED and not force_arm:
             _LOGGER.debug("AUTOARM Ignoring unforced reset for disarmed")
             return existing_state
 
@@ -379,21 +374,21 @@ class AlarmArmer:
         if self.is_occupied():
             if self.auto_disarm and self.is_awake() and not force_arm:
                 _LOGGER.info("AUTOARM Disarming for occupied during waking hours")
-                return await self.arm(STATE_ALARM_DISARMED)
+                return await self.arm(AlarmControlPanelState.DISARMED)
             if not self.is_awake():
                 _LOGGER.info("AUTOARM Arming for occupied out of waking hours")
-                return await self.arm(STATE_ALARM_ARMED_NIGHT)
+                return await self.arm(AlarmControlPanelState.ARMED_NIGHT)
             if hint_arming:
                 _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
                 return await self.arm(hint_arming)
             _LOGGER.info("AUTOARM Defaulting to armed home")
-            return await self.arm(STATE_ALARM_ARMED_HOME)
+            return await self.arm(AlarmControlPanelState.ARMED_HOME)
 
         if hint_arming:
             _LOGGER.info("AUTOARM Using hinted arming state: %s", hint_arming)
             return await self.arm(hint_arming)
         _LOGGER.info("AUTOARM Defaulting to armed away")
-        return await self.arm(STATE_ALARM_ARMED_AWAY)
+        return await self.arm(AlarmControlPanelState.ARMED_AWAY)
 
     async def delayed_arm(
         self,
@@ -512,11 +507,11 @@ class AlarmArmer:
         self.register_request()
         match event.data.get("action"):
             case "ALARM_PANEL_DISARM":
-                await self.arm(STATE_ALARM_DISARMED)
+                await self.arm(AlarmControlPanelState.DISARMED)
             case "ALARM_PANEL_RESET":
                 await self.reset_armed_state(force_arm=True)
             case "ALARM_PANEL_AWAY":
-                await self.arm(STATE_ALARM_ARMED_AWAY)
+                await self.arm(AlarmControlPanelState.ARMED_AWAY)
             case _:
                 _LOGGER.debug("AUTOARM Ignoring mobile action: %s", event.data)
 
@@ -524,12 +519,12 @@ class AlarmArmer:
     async def on_disarm_button(self, event: Event) -> None:
         _LOGGER.info("AUTOARM Disarm Button: %s", event)
         self.register_request()
-        await self.arm(STATE_ALARM_DISARMED)
+        await self.arm(AlarmControlPanelState.DISARMED)
 
     @callback
     async def on_vacation_button(self, event: Event) -> None:
         _LOGGER.info("AUTOARM Vacation Button: %s", event)
-        await self.arm(STATE_ALARM_ARMED_VACATION)
+        await self.arm(AlarmControlPanelState.ARMED_VACATION)
 
     def register_request(self) -> None:
         self.last_request = datetime.datetime.now(datetime.UTC)
@@ -544,7 +539,7 @@ class AlarmArmer:
                     self.hass,
                     partial(
                         self.delayed_arm,
-                        STATE_ALARM_ARMED_AWAY,
+                        AlarmControlPanelState.ARMED_AWAY,
                         False,
                         dt_util.utc_from_timestamp(time.time()),
                     ),
@@ -556,7 +551,7 @@ class AlarmArmer:
                 title="Arm for away process starting",
             )
         else:
-            await self.arm(STATE_ALARM_ARMED_AWAY)
+            await self.arm(AlarmControlPanelState.ARMED_AWAY)
 
     @callback
     async def on_sunrise(self) -> None:
@@ -574,7 +569,7 @@ class AlarmArmer:
                     self.hass,
                     partial(
                         self.delayed_arm,
-                        STATE_ALARM_ARMED_HOME,
+                        AlarmControlPanelState.ARMED_HOME,
                         True,
                         dt_util.utc_from_timestamp(time.time()),
                     ),
