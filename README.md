@@ -1,4 +1,6 @@
-[![Rhizomatics Open Source](https://avatars.githubusercontent.com/u/162821163?s=96&v=4)](https://github.com/rhizomatics)
+
+This repo has now moved to https://github.com/rhizomatics/autoarm
+
 
 # Alarm Auto Arming
 
