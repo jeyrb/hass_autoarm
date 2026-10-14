@@ -64,7 +64,7 @@ preview = true
 
 
 [tool.poetry.group.dev.dependencies]
-homeassistant-stubs = "2024.12.5"
+homeassistant-stubs = "2026.10.0"
 
 
 [tool.pytest.ini_options]
